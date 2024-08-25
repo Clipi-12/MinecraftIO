@@ -1,7 +1,10 @@
 package me.clipi.io.nbt;
 
 import me.clipi.io.CheckedBigEndianDataInput;
-import me.clipi.io.nbt.exceptions.*;
+import me.clipi.io.EofException;
+import me.clipi.io.NotEofException;
+import me.clipi.io.OomException;
+import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.util.GrowableArray;
 import org.jetbrains.annotations.NotNull;
 
@@ -18,15 +21,12 @@ public class NbtParser<ReadException extends Throwable> {
 	}
 
 	@NotNull
-	private NbtCompound parseRoot()
-		throws ReadException, CheckedBigEndianDataInput.EofException, NbtTypeParseException,
-			   CheckedBigEndianDataInput.OomException, CheckedBigEndianDataInput.ModifiedUtf8DataFormatException,
-			   CheckedBigEndianDataInput.NotEofException, NbtDuplicatedKeyException, NbtListOfVoidException,
-			   NbtNegArraySizeException, NbtUnknownTagTypeException {
+	private NbtCompound parseRoot() throws ReadException, EofException, NotEofException, OomException,
+										   NbtParseException {
 		di.expectedByteFail(NbtType.tagCompound, type -> {
-			throw new NbtTypeParseException(NbtType.Compound, type);
+			throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
 		});
-		String key = di.expectModifiedUtf8();
+		String key = readString();
 		NbtCompound root = readCompoundValue();
 		di.expectEnd();
 		NbtCompound res = new NbtCompound();
@@ -36,22 +36,17 @@ public class NbtParser<ReadException extends Throwable> {
 
 	@SuppressWarnings("StatementWithEmptyBody")
 	@NotNull
-	private NbtCompound readCompoundValue()
-		throws ReadException, CheckedBigEndianDataInput.EofException, CheckedBigEndianDataInput.OomException,
-			   CheckedBigEndianDataInput.ModifiedUtf8DataFormatException, NbtDuplicatedKeyException,
-			   NbtListOfVoidException, NbtNegArraySizeException, NbtUnknownTagTypeException {
+	private NbtCompound readCompoundValue() throws ReadException, EofException, OomException, NbtParseException {
 		NbtCompound res = new NbtCompound();
 		while (readMapEntry(res)) ;
 		return res;
 	}
 
-	private boolean readMapEntry(@NotNull NbtCompound target)
-		throws ReadException, CheckedBigEndianDataInput.EofException, CheckedBigEndianDataInput.OomException,
-			   CheckedBigEndianDataInput.ModifiedUtf8DataFormatException, NbtUnknownTagTypeException,
-			   NbtDuplicatedKeyException, NbtNegArraySizeException, NbtListOfVoidException {
+	private boolean readMapEntry(@NotNull NbtCompound target) throws ReadException, EofException, OomException,
+																	 NbtParseException {
 		int type = di.expectByte();
 		if (type == NbtType.tagEnd) return false;
-		String key = di.expectModifiedUtf8();
+		String key = readString();
 		switch (type) {
 			case NbtType.tagByte:
 				target.addByte(key, (byte) di.expectByte());
@@ -81,7 +76,7 @@ public class NbtParser<ReadException extends Throwable> {
 				target.addLongArray(key, readLongArray());
 				break;
 			case NbtType.tagString:
-				target.addString(key, di.expectModifiedUtf8());
+				target.addString(key, readString());
 				break;
 			case NbtType.tagList:
 				// TODO Limit stack overflow protection (recursion)
@@ -92,22 +87,19 @@ public class NbtParser<ReadException extends Throwable> {
 				target.addMap(key, readCompoundValue());
 				break;
 			default:
-				throw new NbtUnknownTagTypeException(type);
+				throw new NbtParseException.UnknownTagType(type);
 		}
 		return true;
 	}
 
 	@NotNull
-	private NbtList readListValue()
-		throws ReadException, CheckedBigEndianDataInput.EofException, NbtListOfVoidException, NbtNegArraySizeException,
-			   CheckedBigEndianDataInput.OomException, NbtUnknownTagTypeException,
-			   CheckedBigEndianDataInput.ModifiedUtf8DataFormatException, NbtDuplicatedKeyException {
+	private NbtList readListValue() throws ReadException, EofException, OomException, NbtParseException {
 		int type = di.expectByte();
 		int size = di.expectInt();
 		if (size == 0) return NbtList.EMPTY_LIST;
 		switch (type) {
 			case NbtType.tagEnd:
-				throw new NbtListOfVoidException();
+				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
 			case NbtType.tagByte:
 				return new NbtList(readByteArray());
 			case NbtType.tagShort:
@@ -127,7 +119,7 @@ public class NbtParser<ReadException extends Throwable> {
 			case NbtType.tagLongArray:
 				return new NbtList(readGenericArray(long[][]::new, this::readLongArray));
 			case NbtType.tagString:
-				return new NbtList(readGenericArray(String[]::new, di::expectModifiedUtf8));
+				return new NbtList(readGenericArray(String[]::new, this::readString));
 			case NbtType.tagList:
 				// TODO Limit stack overflow protection (recursion)
 				return new NbtList(readGenericArray(NbtList[]::new, this::readListValue));
@@ -135,44 +127,46 @@ public class NbtParser<ReadException extends Throwable> {
 				// TODO Limit stack overflow protection (recursion)
 				return new NbtList(readGenericArray(NbtCompound[]::new, this::readCompoundValue));
 			default:
-				throw new NbtUnknownTagTypeException(type);
+				throw new NbtParseException.UnknownTagType(type);
 		}
 	}
 
-	private int readArraySize() throws ReadException, CheckedBigEndianDataInput.EofException,
-									   NbtNegArraySizeException {
+	@NotNull
+	private String readString() throws ReadException, EofException, OomException, NbtParseException.InvalidString {
+		try {
+			return di.expectModifiedUtf8();
+		} catch (CheckedBigEndianDataInput.ModifiedUtf8DataFormatException ex) {
+			throw new NbtParseException.InvalidString(ex);
+		}
+	}
+
+	private int readArraySize() throws ReadException, EofException, NbtParseException.InvalidArraySize {
 		int size = di.expectInt();
-		if (size < 0 || size > GrowableArray.MAX_ARRAY_SIZE) throw new NbtNegArraySizeException(size);
+		if (size < 0 || size > GrowableArray.MAX_ARRAY_SIZE) throw new NbtParseException.InvalidArraySize(size);
 		return size;
 	}
 
-	private byte[] readByteArray() throws ReadException, CheckedBigEndianDataInput.EofException,
-										  NbtNegArraySizeException, CheckedBigEndianDataInput.OomException {
+	private byte[] readByteArray() throws ReadException, EofException, OomException, NbtParseException {
 		return di.expectByteArray(readArraySize());
 	}
 
-	private short[] readShortArray() throws ReadException, CheckedBigEndianDataInput.EofException,
-											NbtNegArraySizeException, CheckedBigEndianDataInput.OomException {
+	private short[] readShortArray() throws ReadException, EofException, OomException, NbtParseException {
 		return di.expectShortArray(readArraySize());
 	}
 
-	private int[] readIntArray() throws ReadException, CheckedBigEndianDataInput.EofException,
-										NbtNegArraySizeException, CheckedBigEndianDataInput.OomException {
+	private int[] readIntArray() throws ReadException, EofException, OomException, NbtParseException {
 		return di.expectIntArray(readArraySize());
 	}
 
-	private long[] readLongArray() throws ReadException, CheckedBigEndianDataInput.EofException,
-										  NbtNegArraySizeException, CheckedBigEndianDataInput.OomException {
+	private long[] readLongArray() throws ReadException, EofException, OomException, NbtParseException {
 		return di.expectLongArray(readArraySize());
 	}
 
-	private float[] readFloatArray() throws ReadException, CheckedBigEndianDataInput.EofException,
-											NbtNegArraySizeException, CheckedBigEndianDataInput.OomException {
+	private float[] readFloatArray() throws ReadException, EofException, OomException, NbtParseException {
 		return di.expectFloatArray(readArraySize());
 	}
 
-	private double[] readDoubleArray() throws ReadException, CheckedBigEndianDataInput.EofException,
-											  NbtNegArraySizeException, CheckedBigEndianDataInput.OomException {
+	private double[] readDoubleArray() throws ReadException, EofException, OomException, NbtParseException {
 		return di.expectDoubleArray(readArraySize());
 	}
 
@@ -180,17 +174,12 @@ public class NbtParser<ReadException extends Throwable> {
 	@FunctionalInterface
 	private interface ReadGeneric<T, ReadException extends Throwable> {
 		@NotNull
-		T read() throws ReadException, CheckedBigEndianDataInput.EofException,
-						CheckedBigEndianDataInput.OomException,
-						CheckedBigEndianDataInput.ModifiedUtf8DataFormatException, NbtNegArraySizeException,
-						NbtListOfVoidException, NbtUnknownTagTypeException, NbtDuplicatedKeyException;
+		T read() throws ReadException, EofException, OomException, NbtParseException;
 	}
 
 	private <T> T[] readGenericArray(@NotNull IntFunction<T @NotNull []> genArray,
 									 @NotNull ReadGeneric<T, ReadException> read)
-		throws ReadException, CheckedBigEndianDataInput.EofException, NbtNegArraySizeException,
-			   CheckedBigEndianDataInput.OomException, CheckedBigEndianDataInput.ModifiedUtf8DataFormatException,
-			   NbtListOfVoidException, NbtUnknownTagTypeException, NbtDuplicatedKeyException {
+		throws ReadException, EofException, OomException, NbtParseException {
 		int len = readArraySize();
 		T[] array = genArray.apply(len);
 		assert array.length == len;

@@ -11,31 +11,11 @@ import java.util.function.IntFunction;
 
 public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 	/**
-	 * Similar to {@link OutOfMemoryError}, but it does not extend {@link Error}
-	 * so that it has to be explicitly caught.
-	 */
-	public static final class OomException extends Exception {
-		private static final long serialVersionUID = -5526955873890302452L;
-	}
-
-	/**
 	 * Similar to {@link java.io.UTFDataFormatException}, but it does not extend {@link java.io.IOException}
 	 * so that it has to be explicitly caught.
 	 */
 	public static final class ModifiedUtf8DataFormatException extends Exception {
 		private static final long serialVersionUID = 706349407222156161L;
-	}
-
-	/**
-	 * Similar to {@link java.io.EOFException}, but it does not extend {@link java.io.IOException}
-	 * so that it has to be explicitly caught.
-	 */
-	public static final class EofException extends Exception {
-		private static final long serialVersionUID = -541017794358015573L;
-	}
-
-	public static final class NotEofException extends Exception {
-		private static final long serialVersionUID = 7464819317282595834L;
 	}
 
 	private final CheckedReader<ReadException> reader;
@@ -233,7 +213,7 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 	 * @see java.io.DataInput#readUTF()
 	 */
 	@NotNull
-	public String expectModifiedUtf8() throws ReadException, CheckedBigEndianDataInput.EofException,
+	public String expectModifiedUtf8() throws ReadException, EofException,
 											  OomException, ModifiedUtf8DataFormatException {
 		int bytes = expectShort();
 		byte[] encoded = expectByteArray(bytes);

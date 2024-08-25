@@ -1,6 +1,6 @@
 package me.clipi.io.util;
 
-import me.clipi.io.CheckedBigEndianDataInput;
+import me.clipi.io.OomException;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
@@ -9,7 +9,7 @@ import java.util.function.IntFunction;
 
 /**
  * Similar to {@link java.util.ArrayList}, but it allows primitive arrays and may throw a
- * {@link me.clipi.io.CheckedBigEndianDataInput.OomException}
+ * {@link OomException}
  * when growing.
  */
 public class GrowableArray<ArrayType extends Cloneable & Serializable> {
@@ -68,11 +68,11 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> {
 	}
 
 	@SuppressWarnings("SuspiciousSystemArraycopy")
-	private int ensureCapacityFor(int amount) throws CheckedBigEndianDataInput.OomException {
+	private int ensureCapacityFor(int amount) throws OomException {
 		ArrayType arr = this.inner;
 		int len = Array.getLength(arr), res = this.nextIdx, nextIdx;
 		if ((nextIdx = this.nextIdx += amount) > len) {
-			if (nextIdx <= 0) throw new CheckedBigEndianDataInput.OomException();
+			if (nextIdx <= 0) throw new OomException();
 			len = Math.min(Integer.highestOneBit(nextIdx) << 1, MAX_ARRAY_SIZE);
 			ArrayType newArr;
 			oom:
@@ -87,7 +87,7 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> {
 				try {
 					newArr = gen.apply(len);
 				} catch (OutOfMemoryError err) {
-					throw new CheckedBigEndianDataInput.OomException();
+					throw new OomException();
 				}
 			}
 			this.inner = newArr;
@@ -96,67 +96,67 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> {
 		return res;
 	}
 
-	public static <T> void add(@NotNull GrowableArray<T[]> self, T item) throws CheckedBigEndianDataInput.OomException {
+	public static <T> void add(@NotNull GrowableArray<T[]> self, T item) throws OomException {
 		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<byte[]> self, byte item) throws CheckedBigEndianDataInput.OomException {
+	public static void add(@NotNull GrowableArray<byte[]> self, byte item) throws OomException {
 		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<short[]> self, short item) throws CheckedBigEndianDataInput.OomException {
+	public static void add(@NotNull GrowableArray<short[]> self, short item) throws OomException {
 		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<int[]> self, int item) throws CheckedBigEndianDataInput.OomException {
+	public static void add(@NotNull GrowableArray<int[]> self, int item) throws OomException {
 		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<long[]> self, long item) throws CheckedBigEndianDataInput.OomException {
+	public static void add(@NotNull GrowableArray<long[]> self, long item) throws OomException {
 		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<float[]> self, float item) throws CheckedBigEndianDataInput.OomException {
+	public static void add(@NotNull GrowableArray<float[]> self, float item) throws OomException {
 		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<double[]> self, double item) throws CheckedBigEndianDataInput.OomException {
+	public static void add(@NotNull GrowableArray<double[]> self, double item) throws OomException {
 		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
 	@SafeVarargs
 	@SuppressWarnings("varargs")
-	public static <T> void addAll(@NotNull GrowableArray<T[]> self, T @NotNull ... items) throws CheckedBigEndianDataInput.OomException {
+	public static <T> void addAll(@NotNull GrowableArray<T[]> self, T @NotNull ... items) throws OomException {
 		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<byte[]> self, byte @NotNull ... items) throws CheckedBigEndianDataInput.OomException {
+	public static void addAll(@NotNull GrowableArray<byte[]> self, byte @NotNull ... items) throws OomException {
 		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<short[]> self, short @NotNull ... items) throws CheckedBigEndianDataInput.OomException {
+	public static void addAll(@NotNull GrowableArray<short[]> self, short @NotNull ... items) throws OomException {
 		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<int[]> self, int @NotNull ... items) throws CheckedBigEndianDataInput.OomException {
+	public static void addAll(@NotNull GrowableArray<int[]> self, int @NotNull ... items) throws OomException {
 		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<long[]> self, long @NotNull ... items) throws CheckedBigEndianDataInput.OomException {
+	public static void addAll(@NotNull GrowableArray<long[]> self, long @NotNull ... items) throws OomException {
 		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<float[]> self, float @NotNull ... items) throws CheckedBigEndianDataInput.OomException {
+	public static void addAll(@NotNull GrowableArray<float[]> self, float @NotNull ... items) throws OomException {
 		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<double[]> self, double @NotNull ... items) throws CheckedBigEndianDataInput.OomException {
+	public static void addAll(@NotNull GrowableArray<double[]> self, double @NotNull ... items) throws OomException {
 		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
