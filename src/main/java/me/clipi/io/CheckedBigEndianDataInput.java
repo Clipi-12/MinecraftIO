@@ -107,7 +107,7 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 		try {
 			res = new byte[size];
 		} catch (OutOfMemoryError err) {
-			throw new OomException();
+			throw OomException.INSTANCE;
 		}
 		if (reader.readFullyOrTrue(res)) throw new EofException();
 		return res;
@@ -166,7 +166,7 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 		try {
 			res = gen.apply(size);
 		} catch (OutOfMemoryError err) {
-			throw new OomException();
+			throw OomException.INSTANCE;
 		}
 		ByteBuffer buf;
 		try {
@@ -253,7 +253,7 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 		try {
 			return new String(decoded, 0, chars);
 		} catch (OutOfMemoryError err) {
-			throw new OomException();
+			throw OomException.INSTANCE;
 		}
 	}
 }

@@ -59,7 +59,7 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> {
 		ArrayType arr = this.inner;
 		int len = Array.getLength(arr), res = this.nextIdx, nextIdx;
 		if ((nextIdx = this.nextIdx += amount) > len) {
-			if (nextIdx <= 0 | nextIdx > MAX_ARRAY_SIZE) throw new OomException();
+			if (nextIdx <= 0 | nextIdx > MAX_ARRAY_SIZE) throw OomException.INSTANCE;
 			len = Math.min(Integer.highestOneBit(nextIdx) << 1, MAX_ARRAY_SIZE);
 			ArrayType newArr;
 			oom:
@@ -75,13 +75,13 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> {
 					newArr = gen.apply(len);
 					break oom;
 				} catch (OutOfMemoryError err) {
-					if (trySaveFromOom == null) throw new OomException();
+					if (trySaveFromOom == null) throw OomException.INSTANCE;
 					trySaveFromOom.run();
 				}
 				try {
 					newArr = gen.apply(len);
 				} catch (OutOfMemoryError err) {
-					throw new OomException();
+					throw OomException.INSTANCE;
 				}
 			}
 			this.inner = newArr;

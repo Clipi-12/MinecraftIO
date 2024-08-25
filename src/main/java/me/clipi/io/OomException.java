@@ -6,4 +6,9 @@ package me.clipi.io;
  */
 public final class OomException extends Exception {
 	private static final long serialVersionUID = -5526955873890302452L;
+	public static final OomException INSTANCE = new OomException();
+
+	private OomException() {
+		super(null, null, false, false);
+	}
 }

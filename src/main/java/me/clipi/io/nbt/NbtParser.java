@@ -5,8 +5,10 @@ import me.clipi.io.EofException;
 import me.clipi.io.NotEofException;
 import me.clipi.io.OomException;
 import me.clipi.io.nbt.exceptions.NbtParseException;
+import me.clipi.io.util.FixedStack;
 import me.clipi.io.util.GrowableArray;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.IntFunction;
 
@@ -15,85 +17,172 @@ import java.util.function.IntFunction;
  */
 public class NbtParser<ReadException extends Throwable> {
 	private final CheckedBigEndianDataInput<ReadException> di;
+	/**
+	 * FixedStack of objects that are either NbtCompound or ListOfLists.
+	 * If the project used Java 17, this could be improved with sealed classes
+	 *
+	 * <p>The wiki says that <pre>Compound and List tags may not be nested beyond a depth of {@code 512}</pre>,
+	 * but we allow for {@code 1024}, and an additional tag for the root
+	 */
+	private final FixedStack<Object> nestedTarget = new FixedStack<>(Object.class, 1025);
 
-	public NbtParser(CheckedBigEndianDataInput<ReadException> di) {
+	public NbtParser(@NotNull CheckedBigEndianDataInput<ReadException> di) {
 		this.di = di;
 	}
 
 	@NotNull
 	private NbtCompound parseRoot() throws ReadException, EofException, NotEofException, OomException,
-										   NbtParseException {
+										   NbtParseException, FixedStack.FullStackException,
+										   FixedStack.EmptyStackException {
 		di.expectedByteFail(NbtType.tagCompound, type -> {
 			throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
 		});
 		String key = readString();
-		NbtCompound root = readCompoundValue();
+		NbtCompound root = readRootValue();
 		di.expectEnd();
 		NbtCompound res = new NbtCompound();
 		res.addMap(key, root);
 		return res;
 	}
 
-	@SuppressWarnings("StatementWithEmptyBody")
 	@NotNull
-	private NbtCompound readCompoundValue() throws ReadException, EofException, OomException, NbtParseException {
-		NbtCompound res = new NbtCompound();
-		while (readMapEntry(res)) ;
-		return res;
-	}
-
-	private boolean readMapEntry(@NotNull NbtCompound target) throws ReadException, EofException, OomException,
-																	 NbtParseException {
-		int type = di.expectByte();
-		if (type == NbtType.tagEnd) return false;
-		String key = readString();
-		switch (type) {
-			case NbtType.tagByte:
-				target.addByte(key, (byte) di.expectByte());
-				break;
-			case NbtType.tagShort:
-				target.addShort(key, (short) di.expectShort());
-				break;
-			case NbtType.tagInt:
-				target.addInt(key, di.expectInt());
-				break;
-			case NbtType.tagLong:
-				target.addLong(key, di.expectLong());
-				break;
-			case NbtType.tagFloat:
-				target.addFloat(key, di.expectFloat());
-				break;
-			case NbtType.tagDouble:
-				target.addDouble(key, di.expectDouble());
-				break;
-			case NbtType.tagByteArray:
-				target.addByteArray(key, readByteArray());
-				break;
-			case NbtType.tagIntArray:
-				target.addIntArray(key, readIntArray());
-				break;
-			case NbtType.tagLongArray:
-				target.addLongArray(key, readLongArray());
-				break;
-			case NbtType.tagString:
-				target.addString(key, readString());
-				break;
-			case NbtType.tagList:
-				// TODO Limit stack overflow protection (recursion)
-				target.addList(key, readListValue());
-				break;
-			case NbtType.tagCompound:
-				// TODO Limit stack overflow protection (recursion)
-				target.addMap(key, readCompoundValue());
-				break;
-			default:
-				throw new NbtParseException.UnknownTagType(type);
+	private NbtCompound readRootValue() throws ReadException, EofException, OomException,
+											   NbtParseException, FixedStack.FullStackException,
+											   FixedStack.EmptyStackException {
+		FixedStack<Object> nestedTarget = this.nestedTarget;
+		NbtCompound root = new NbtCompound();
+		nestedTarget.push(root);
+		NbtCompound target = root;
+		for (; ; ) {
+			if (readMapEntry(target)) return root;
+			readListEntries((ListOfLists) nestedTarget.pop());
+			target = (NbtCompound) nestedTarget.pop();
 		}
-		return true;
 	}
 
-	@NotNull
-	private NbtList readListValue() throws ReadException, EofException, OomException, NbtParseException {
+	/**
+	 * @return whether the root has been reached or a ListOfLists target is on top of the stack
+	 */
+	private boolean readMapEntry(@NotNull NbtCompound target) throws ReadException, EofException, OomException,
+																	 NbtParseException, FixedStack.FullStackException,
+																	 FixedStack.EmptyStackException {
+		FixedStack<Object> nestedTarget = this.nestedTarget;
+		newTarget:
+		for (; ; ) {
+			int stackSize = nestedTarget.getSize();
+			for (; ; ) {
+				int type = di.expectByte();
+				if (type == NbtType.tagEnd) {
+					nestedTarget.pop(); // pop self
+
+					Object parent = nestedTarget.tryPeek();
+					if (parent == null) return true;
+					if (parent instanceof ListOfLists) return false;
+					target = (NbtCompound) parent;
+					continue newTarget;
+				}
+				String key = readString();
+				switch (type) {
+					case NbtType.tagByte:
+						target.addByte(key, (byte) di.expectByte());
+						break;
+					case NbtType.tagShort:
+						target.addShort(key, (short) di.expectShort());
+						break;
+					case NbtType.tagInt:
+						target.addInt(key, di.expectInt());
+						break;
+					case NbtType.tagLong:
+						target.addLong(key, di.expectLong());
+						break;
+					case NbtType.tagFloat:
+						target.addFloat(key, di.expectFloat());
+						break;
+					case NbtType.tagDouble:
+						target.addDouble(key, di.expectDouble());
+						break;
+					case NbtType.tagByteArray:
+						target.addByteArray(key, readByteArray());
+						break;
+					case NbtType.tagIntArray:
+						target.addIntArray(key, readIntArray());
+						break;
+					case NbtType.tagLongArray:
+						target.addLongArray(key, readLongArray());
+						break;
+					case NbtType.tagString:
+						target.addString(key, readString());
+						break;
+					case NbtType.tagList:
+						NbtList list = readListValue(key);
+						if (list == null) return false;
+						target.addList(key, list);
+						if (stackSize != nestedTarget.getSize()) {
+							target = (NbtCompound) nestedTarget.peek();
+							continue newTarget;
+						}
+						break;
+					case NbtType.tagCompound:
+						NbtCompound newDepth = new NbtCompound();
+						nestedTarget.push(newDepth);
+						target.addMap(key, newDepth);
+						target = newDepth;
+						continue newTarget;
+					default:
+						throw new NbtParseException.UnknownTagType(type);
+				}
+			}
+		}
+	}
+
+	private void readListEntries(@NotNull ListOfLists target) throws ReadException, EofException, OomException,
+																	 NbtParseException, FixedStack.FullStackException,
+																	 FixedStack.EmptyStackException {
+		FixedStack<Object> nestedTarget = this.nestedTarget;
+		newTarget:
+		for (; ; ) {
+			@NotNull NbtList[] array = target.array;
+			int len = array.length;
+			int stackSize = nestedTarget.getSize();
+			for (; ; ) {
+				if (target.nextIdx >= len) {
+					nestedTarget.pop(); // pop self
+
+					Object parent = nestedTarget.peek();
+					if (parent instanceof NbtCompound) {
+						assert target.key != null;
+						((NbtCompound) parent).addList(target.key, target.result);
+						return;
+					}
+					assert target.key == null;
+
+					ListOfLists parentAsList = (ListOfLists) parent;
+					parentAsList.array[parentAsList.nextIdx++] = target.result;
+					target = parentAsList;
+					continue newTarget;
+				}
+
+				NbtList list = readListValue(null);
+				if (list == null) {
+					target = (ListOfLists) nestedTarget.peek();
+					continue newTarget;
+				}
+				if (stackSize != nestedTarget.getSize()) return;
+				array[target.nextIdx++] = list;
+			}
+		}
+	}
+
+	/**
+	 * Reads a NBT List value if it is not nested (List of Lists or List of Maps).
+	 * <p>If the parsed NBT List is a List of Lists, it will return null, and a ListOfLists target will be added to
+	 * the top of the stack
+	 * <p>If the parsed NBT List is a List of Maps, it will return a List with empty NbtCompound's. Those empty
+	 * NbtCompound's will be added to the top of the stack, so that they can be parsed
+	 */
+	@Nullable
+	private NbtList readListValue(@Nullable String key) throws ReadException, EofException, OomException,
+															   NbtParseException, FixedStack.FullStackException {
 		int type = di.expectByte();
 		int size = di.expectInt();
 		if (size == 0) return NbtList.EMPTY_LIST;
@@ -121,11 +210,16 @@ public class NbtParser<ReadException extends Throwable> {
 			case NbtType.tagString:
 				return new NbtList(readGenericArray(String[]::new, this::readString));
 			case NbtType.tagList:
-				// TODO Limit stack overflow protection (recursion)
-				return new NbtList(readGenericArray(NbtList[]::new, this::readListValue));
+				nestedTarget.push(ListOfLists.oomAwareCreate(size, key));
+				return null;
 			case NbtType.tagCompound:
-				// TODO Limit stack overflow protection (recursion)
-				return new NbtList(readGenericArray(NbtCompound[]::new, this::readCompoundValue));
+				NbtCompound[] maps = readGenericArray(NbtCompound[]::new, NbtCompound::new);
+				// False positive warning by IntelliJ, since it the compiler
+				// will complain if it is not cast to an Object[]
+				@SuppressWarnings("UnnecessaryLocalVariable")
+				Object[] mapsAsObjects = maps;
+				nestedTarget.pushAll(mapsAsObjects);
+				return new NbtList(maps);
 			default:
 				throw new NbtParseException.UnknownTagType(type);
 		}
@@ -181,10 +275,38 @@ public class NbtParser<ReadException extends Throwable> {
 									 @NotNull ReadGeneric<T, ReadException> read)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int len = readArraySize();
-		T[] array = genArray.apply(len);
+		T[] array;
+		try {
+			array = genArray.apply(len);
+		} catch (OutOfMemoryError err) {
+			throw OomException.INSTANCE;
+		}
 		assert array.length == len;
 		for (int i = 0; i < len; ++i)
 			array[i] = read.read();
 		return array;
+	}
+
+	private static final class ListOfLists {
+		private final @NotNull NbtList result;
+		private final @Nullable String key;
+
+		private final @NotNull NbtList @NotNull [] array;
+		private int nextIdx;
+
+		private ListOfLists(@Nullable String key, @NotNull NbtList @NotNull [] array, @NotNull NbtList result) {
+			this.key = key;
+			this.array = array;
+			this.result = result;
+		}
+
+		private static ListOfLists oomAwareCreate(int size, @Nullable String key) throws OomException {
+			try {
+				NbtList[] array = new NbtList[size];
+				return new ListOfLists(key, array, new NbtList(array));
+			} catch (OutOfMemoryError err) {
+				throw OomException.INSTANCE;
+			}
+		}
 	}
 }
