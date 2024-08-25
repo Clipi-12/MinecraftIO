@@ -1,7 +1,9 @@
 package me.clipi.io;
 
+import me.clipi.io.OomException.OomAware;
 import me.clipi.io.util.function.CheckedByteConsumer;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,6 +21,11 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 	}
 
 	private final CheckedReader<ReadException> reader;
+	private @Nullable OomAware oomAware;
+
+	public void setOomAware(@Nullable OomAware oomAware) {
+		this.oomAware = oomAware;
+	}
 
 	public CheckedBigEndianDataInput(@NotNull CheckedReader<ReadException> reader) {
 		this.reader = reader;
@@ -103,12 +110,7 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 	 */
 	public byte @NotNull [] expectByteArray(int size) throws ReadException, EofException, OomException {
 		assert size >= 0;
-		byte[] res;
-		try {
-			res = new byte[size];
-		} catch (OutOfMemoryError err) {
-			throw OomException.INSTANCE;
-		}
+		byte[] res = OomAware.tryRun(oomAware, () -> new byte[size]);
 		if (reader.readFullyOrTrue(res)) throw new EofException();
 		return res;
 	}
@@ -162,16 +164,10 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 								  @NotNull CopyFromByteBuffer<Arr> copy)
 		throws ReadException, EofException, OomException {
 		assert size >= 0;
-		Arr res;
-		try {
-			res = gen.apply(size);
-		} catch (OutOfMemoryError err) {
-			throw OomException.INSTANCE;
-		}
-		ByteBuffer buf;
-		try {
-			buf = ByteBuffer.allocate(size << byteShiftAmount).order(ByteOrder.BIG_ENDIAN);
-		} catch (OutOfMemoryError err) {
+		Arr res = OomAware.tryRun(oomAware, () -> gen.apply(size));
+		ByteBuffer buf = OomAware.tryRunOrNull(oomAware, () -> ByteBuffer.allocate(size << byteShiftAmount)
+																		 .order(ByteOrder.BIG_ENDIAN));
+		if (buf == null) {
 			oomExpectArray(size, byteShiftAmount, res, copy);
 			return res;
 		}
@@ -184,8 +180,7 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 	private <Arr> void oomExpectArray(long size, int byteShiftAmount, @NotNull Arr array,
 									  @NotNull CopyFromByteBuffer<Arr> copy)
 		throws ReadException, EofException {
-		System.gc();
-		ByteBuffer buf = this.buf8KiB;
+		ByteBuffer buf = buf8KiB;
 		int offset = 0;
 		CheckedReader<ReadException> reader = this.reader;
 		try {
@@ -217,7 +212,7 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 											  OomException, ModifiedUtf8DataFormatException {
 		int bytes = expectShort();
 		byte[] encoded = expectByteArray(bytes);
-		char[] decoded = new char[bytes];
+		char[] decoded = OomAware.tryRun(oomAware, () -> new char[bytes]);
 		int chars = 0;
 		for (int i = 0; i < bytes; ++i) {
 			char decodedChar;
@@ -250,10 +245,7 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 			decoded[chars++] = decodedChar;
 		}
 
-		try {
-			return new String(decoded, 0, chars);
-		} catch (OutOfMemoryError err) {
-			throw OomException.INSTANCE;
-		}
+		int finalChars = chars;
+		return OomAware.tryRun(oomAware, () -> new String(decoded, 0, finalChars));
 	}
 }

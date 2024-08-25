@@ -1,6 +1,7 @@
 package me.clipi.io.util;
 
 import me.clipi.io.OomException;
+import me.clipi.io.OomException.OomAware;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -13,7 +14,7 @@ import java.util.function.IntFunction;
  * {@link OomException}
  * when growing.
  */
-public class GrowableArray<ArrayType extends Cloneable & Serializable> {
+public class GrowableArray<ArrayType extends Cloneable & Serializable> implements OomAware {
 	/**
 	 * From {@link java.util.ArrayList}'s internal code:
 	 * <pre>
@@ -25,11 +26,14 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> {
 	 */
 	public static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
+	private @Nullable OomAware oomAware;
 	private final @NotNull IntFunction<@NotNull ArrayType> gen;
 	public @NotNull ArrayType inner;
 	private int nextIdx;
 
-	private GrowableArray(int initSize, @NotNull IntFunction<@NotNull ArrayType> gen) {
+	private GrowableArray(@Nullable OomAware oomAware, int initSize,
+						  @NotNull IntFunction<@NotNull ArrayType> gen) {
+		this.oomAware = oomAware;
 		assert initSize > 0;
 		inner = gen.apply(initSize);
 		this.gen = gen;
@@ -44,44 +48,42 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> {
 		int size = nextIdx;
 		ArrayType inner = this.inner;
 		if (Array.getLength(inner) == size) return;
+
+		OomAware oomAware = this.oomAware;
+		this.oomAware = null; // Avoid self-calling infinitely
 		ArrayType newInner;
 		try {
-			newInner = gen.apply(size);
-		} catch (OutOfMemoryError err) {
-			return;
+			newInner = OomAware.tryRunOrNull(oomAware, () -> gen.apply(size));
+		} finally {
+			this.oomAware = oomAware;
 		}
+
+		if (newInner == null) return;
 		System.arraycopy(inner, 0, newInner, 0, size);
 		this.inner = newInner;
 	}
 
+	@Override
+	public void trySaveFromOom() {
+		tryShrinkToFit();
+	}
+
 	@SuppressWarnings("SuspiciousSystemArraycopy")
-	private int ensureCapacityFor(int amount, @Nullable Runnable trySaveFromOom) throws OomException {
+	private int ensureCapacityFor(int amount) throws OomException {
 		ArrayType arr = this.inner;
 		int len = Array.getLength(arr), res = this.nextIdx, nextIdx;
 		if ((nextIdx = this.nextIdx += amount) > len) {
 			if (nextIdx <= 0 | nextIdx > MAX_ARRAY_SIZE) throw OomException.INSTANCE;
 			len = Math.min(Integer.highestOneBit(nextIdx) << 1, MAX_ARRAY_SIZE);
-			ArrayType newArr;
-			oom:
+			ArrayType newArr = null;
 			{
-				if (len > 0)
-					try {
-						newArr = gen.apply(len);
-						break oom;
-					} catch (OutOfMemoryError ignored) {
-					}
-				len = nextIdx;
-				try {
-					newArr = gen.apply(len);
-					break oom;
-				} catch (OutOfMemoryError err) {
-					if (trySaveFromOom == null) throw OomException.INSTANCE;
-					trySaveFromOom.run();
+				if (len > 0) {
+					int finalLen = len;
+					newArr = OomAware.tryRunOrNull(oomAware, () -> gen.apply(finalLen));
 				}
-				try {
-					newArr = gen.apply(len);
-				} catch (OutOfMemoryError err) {
-					throw OomException.INSTANCE;
+				if (newArr == null) {
+					len = nextIdx;
+					newArr = OomAware.tryRun(oomAware, () -> gen.apply(nextIdx));
 				}
 			}
 			this.inner = newArr;
@@ -91,110 +93,103 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> GrowableArray<T[]> generic(@NotNull Class<T> tClass) {
-		return new GrowableArray<>(16, size -> (T[]) Array.newInstance(tClass, size));
+	public static <T> GrowableArray<T[]> generic(@NotNull Class<T> tClass, @Nullable OomAware oomAware) {
+		return new GrowableArray<>(oomAware, 16, size -> (T[]) Array.newInstance(tClass, size));
 	}
 
 	// <editor-fold defaultstate="collapsed" desc="create methods">
-	public static GrowableArray<byte[]> bytes() {
-		return new GrowableArray<>(32, byte[]::new);
+	public static GrowableArray<byte[]> bytes(@Nullable OomAware oomAware) {
+		return new GrowableArray<>(oomAware, 32, byte[]::new);
 	}
 
-	public static GrowableArray<short[]> shorts() {
-		return new GrowableArray<>(16, short[]::new);
+	public static GrowableArray<short[]> shorts(@Nullable OomAware oomAware) {
+		return new GrowableArray<>(oomAware, 16, short[]::new);
 	}
 
-	public static GrowableArray<int[]> ints() {
-		return new GrowableArray<>(8, int[]::new);
+	public static GrowableArray<int[]> ints(@Nullable OomAware oomAware) {
+		return new GrowableArray<>(oomAware, 8, int[]::new);
 	}
 
-	public static GrowableArray<long[]> longs() {
-		return new GrowableArray<>(4, long[]::new);
+	public static GrowableArray<long[]> longs(@Nullable OomAware oomAware) {
+		return new GrowableArray<>(oomAware, 4, long[]::new);
 	}
 
-	public static GrowableArray<float[]> floats() {
-		return new GrowableArray<>(8, float[]::new);
+	public static GrowableArray<float[]> floats(@Nullable OomAware oomAware) {
+		return new GrowableArray<>(oomAware, 8, float[]::new);
 	}
 
-	public static GrowableArray<double[]> doubles() {
-		return new GrowableArray<>(4, double[]::new);
+	public static GrowableArray<double[]> doubles(@Nullable OomAware oomAware) {
+		return new GrowableArray<>(oomAware, 4, double[]::new);
 	}
 	// </editor-fold>
 
 
-	public static <T> void add(@NotNull GrowableArray<T[]> self, T item, @Nullable Runnable trySaveFromOom) throws OomException {
-		self.inner[self.ensureCapacityFor(1, trySaveFromOom)] = item;
+	public static <T> void add(@NotNull GrowableArray<T[]> self, T item) throws OomException {
+		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
 	// <editor-fold defaultstate="collapsed" desc="add methods">
-	public static void add(@NotNull GrowableArray<byte[]> self, byte item, @Nullable Runnable trySaveFromOom) throws OomException {
-		self.inner[self.ensureCapacityFor(1, trySaveFromOom)] = item;
+	public static void add(@NotNull GrowableArray<byte[]> self, byte item) throws OomException {
+		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<short[]> self, short item, @Nullable Runnable trySaveFromOom) throws OomException {
-		self.inner[self.ensureCapacityFor(1, trySaveFromOom)] = item;
+	public static void add(@NotNull GrowableArray<short[]> self, short item) throws OomException {
+		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<int[]> self, int item, @Nullable Runnable trySaveFromOom) throws OomException {
-		self.inner[self.ensureCapacityFor(1, trySaveFromOom)] = item;
+	public static void add(@NotNull GrowableArray<int[]> self, int item) throws OomException {
+		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<long[]> self, long item, @Nullable Runnable trySaveFromOom) throws OomException {
-		self.inner[self.ensureCapacityFor(1, trySaveFromOom)] = item;
+	public static void add(@NotNull GrowableArray<long[]> self, long item) throws OomException {
+		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<float[]> self, float item, @Nullable Runnable trySaveFromOom) throws OomException {
-		self.inner[self.ensureCapacityFor(1, trySaveFromOom)] = item;
+	public static void add(@NotNull GrowableArray<float[]> self, float item) throws OomException {
+		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 
-	public static void add(@NotNull GrowableArray<double[]> self, double item, @Nullable Runnable trySaveFromOom) throws OomException {
-		self.inner[self.ensureCapacityFor(1, trySaveFromOom)] = item;
+	public static void add(@NotNull GrowableArray<double[]> self, double item) throws OomException {
+		self.inner[self.ensureCapacityFor(1)] = item;
 	}
 	// </editor-fold>
 
 
 	@SafeVarargs
 	@SuppressWarnings("varargs")
-	public static <T> void addAll(@NotNull GrowableArray<T[]> self, @Nullable Runnable trySaveFromOom,
-								  T @NotNull ... items) throws OomException {
-		int idx = self.ensureCapacityFor(items.length, trySaveFromOom);
+	public static <T> void addAll(@NotNull GrowableArray<T[]> self, T @NotNull ... items) throws OomException {
+		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
 	// <editor-fold defaultstate="collapsed" desc="addAll methods">
-	public static void addAll(@NotNull GrowableArray<byte[]> self, @Nullable Runnable trySaveFromOom,
-							  byte @NotNull ... items) throws OomException {
-		int idx = self.ensureCapacityFor(items.length, trySaveFromOom);
+	public static void addAll(@NotNull GrowableArray<byte[]> self, byte @NotNull ... items) throws OomException {
+		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<short[]> self, @Nullable Runnable trySaveFromOom,
-							  short @NotNull ... items) throws OomException {
-		int idx = self.ensureCapacityFor(items.length, trySaveFromOom);
+	public static void addAll(@NotNull GrowableArray<short[]> self, short @NotNull ... items) throws OomException {
+		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<int[]> self, @Nullable Runnable trySaveFromOom,
-							  int @NotNull ... items) throws OomException {
-		int idx = self.ensureCapacityFor(items.length, trySaveFromOom);
+	public static void addAll(@NotNull GrowableArray<int[]> self, int @NotNull ... items) throws OomException {
+		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<long[]> self, @Nullable Runnable trySaveFromOom,
-							  long @NotNull ... items) throws OomException {
-		int idx = self.ensureCapacityFor(items.length, trySaveFromOom);
+	public static void addAll(@NotNull GrowableArray<long[]> self, long @NotNull ... items) throws OomException {
+		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<float[]> self, @Nullable Runnable trySaveFromOom,
-							  float @NotNull ... items) throws OomException {
-		int idx = self.ensureCapacityFor(items.length, trySaveFromOom);
+	public static void addAll(@NotNull GrowableArray<float[]> self, float @NotNull ... items) throws OomException {
+		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 
-	public static void addAll(@NotNull GrowableArray<double[]> self, @Nullable Runnable trySaveFromOom,
-							  double @NotNull ... items) throws OomException {
-		int idx = self.ensureCapacityFor(items.length, trySaveFromOom);
+	public static void addAll(@NotNull GrowableArray<double[]> self, double @NotNull ... items) throws OomException {
+		int idx = self.ensureCapacityFor(items.length);
 		System.arraycopy(items, 0, self.inner, idx, items.length);
 	}
 	// </editor-fold>

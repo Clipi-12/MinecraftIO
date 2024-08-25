@@ -4,6 +4,7 @@ import me.clipi.io.CheckedBigEndianDataInput;
 import me.clipi.io.EofException;
 import me.clipi.io.NotEofException;
 import me.clipi.io.OomException;
+import me.clipi.io.OomException.OomAware;
 import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.util.FixedStack;
 import me.clipi.io.util.GrowableArray;
@@ -25,6 +26,7 @@ public class NbtParser<ReadException extends Throwable> {
 	 * but we allow for {@code 1024}, and an additional tag for the root
 	 */
 	private final FixedStack<Object> nestedTarget = new FixedStack<>(Object.class, 1025);
+	private @Nullable OomAware oomAware;
 
 	public NbtParser(@NotNull CheckedBigEndianDataInput<ReadException> di) {
 		this.di = di;
@@ -38,7 +40,12 @@ public class NbtParser<ReadException extends Throwable> {
 			throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
 		});
 		String key = readString();
-		NbtCompound root = readRootValue();
+		NbtCompound root;
+		try {
+			root = readRootValue();
+		} finally {
+			di.setOomAware(oomAware = null);
+		}
 		di.expectEnd();
 		NbtCompound res = new NbtCompound();
 		res.addMap(key, root);
@@ -51,6 +58,7 @@ public class NbtParser<ReadException extends Throwable> {
 											   FixedStack.EmptyStackException {
 		FixedStack<Object> nestedTarget = this.nestedTarget;
 		NbtCompound root = new NbtCompound();
+		di.setOomAware(oomAware = root);
 		nestedTarget.push(root);
 		NbtCompound target = root;
 		for (; ; ) {
@@ -210,10 +218,12 @@ public class NbtParser<ReadException extends Throwable> {
 			case NbtType.tagString:
 				return new NbtList(readGenericArray(String[]::new, this::readString));
 			case NbtType.tagList:
-				nestedTarget.push(ListOfLists.oomAwareCreate(size, key));
+				nestedTarget.push(OomAware.tryRun(oomAware, () -> new ListOfLists(key, size)));
 				return null;
 			case NbtType.tagCompound:
-				NbtCompound[] maps = readGenericArray(NbtCompound[]::new, NbtCompound::new);
+				NbtCompound[] maps = readGenericArray(NbtCompound[]::new, () ->
+					// Wrap in OomAware.tryRun because there may be a lot of instances
+					OomAware.tryRun(oomAware, NbtCompound::new));
 				// False positive warning by IntelliJ, since it the compiler
 				// will complain if it is not cast to an Object[]
 				@SuppressWarnings("UnnecessaryLocalVariable")
@@ -275,12 +285,7 @@ public class NbtParser<ReadException extends Throwable> {
 									 @NotNull ReadGeneric<T, ReadException> read)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int len = readArraySize();
-		T[] array;
-		try {
-			array = genArray.apply(len);
-		} catch (OutOfMemoryError err) {
-			throw OomException.INSTANCE;
-		}
+		T[] array = OomAware.tryRun(oomAware, () -> genArray.apply(len));
 		assert array.length == len;
 		for (int i = 0; i < len; ++i)
 			array[i] = read.read();
@@ -294,19 +299,10 @@ public class NbtParser<ReadException extends Throwable> {
 		private final @NotNull NbtList @NotNull [] array;
 		private int nextIdx;
 
-		private ListOfLists(@Nullable String key, @NotNull NbtList @NotNull [] array, @NotNull NbtList result) {
+		private ListOfLists(@Nullable String key, int size) {
 			this.key = key;
-			this.array = array;
-			this.result = result;
-		}
-
-		private static ListOfLists oomAwareCreate(int size, @Nullable String key) throws OomException {
-			try {
-				NbtList[] array = new NbtList[size];
-				return new ListOfLists(key, array, new NbtList(array));
-			} catch (OutOfMemoryError err) {
-				throw OomException.INSTANCE;
-			}
+			this.array = new NbtList[size];
+			this.result = new NbtList(array);
 		}
 	}
 }
