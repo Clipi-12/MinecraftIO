@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.function.IntFunction;
 
 public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 	/**
@@ -135,68 +136,84 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 	/**
 	 * The caller is responsible for asserting that {@code size >= 0}
 	 */
-	public int @NotNull [] expectIntArray(int size) throws ReadException, EofException, OomException {
-		assert size >= 0;
-		int[] res;
-		try {
-			res = new int[size];
-		} catch (OutOfMemoryError err) {
-			throw new OutOfMemoryError();
-		}
-		ByteBuffer buf;
-		try {
-			buf = ByteBuffer.allocate(size << 2).order(ByteOrder.BIG_ENDIAN);
-		} catch (OutOfMemoryError err) {
-			oomExpectArray(size, true, res);
-			return res;
-		}
+	public short @NotNull [] expectShortArray(int size) throws ReadException, EofException, OomException {
+		return expectArray(size, short[]::new, 1, (buf, off, len, arr) -> buf.asShortBuffer().get(arr, off, len));
+	}
 
-		if (reader.readFullyOrTrue(buf.array())) throw new EofException();
-		buf.asIntBuffer().get(res);
-		return res;
+	/**
+	 * The caller is responsible for asserting that {@code size >= 0}
+	 */
+	public int @NotNull [] expectIntArray(int size) throws ReadException, EofException, OomException {
+		return expectArray(size, int[]::new, 2, (buf, off, len, arr) -> buf.asIntBuffer().get(arr, off, len));
 	}
 
 	/**
 	 * The caller is responsible for asserting that {@code size >= 0}
 	 */
 	public long @NotNull [] expectLongArray(int size) throws ReadException, EofException, OomException {
+		return expectArray(size, long[]::new, 3, (buf, off, len, arr) -> buf.asLongBuffer().get(arr, off, len));
+	}
+
+	/**
+	 * The caller is responsible for asserting that {@code size >= 0}
+	 */
+	public float @NotNull [] expectFloatArray(int size) throws ReadException, EofException, OomException {
+		return expectArray(size, float[]::new, 2, (buf, off, len, arr) -> buf.asFloatBuffer().get(arr, off, len));
+	}
+
+	/**
+	 * The caller is responsible for asserting that {@code size >= 0}
+	 */
+	public double @NotNull [] expectDoubleArray(int size) throws ReadException, EofException, OomException {
+		return expectArray(size, double[]::new, 3, (buf, off, len, arr) -> buf.asDoubleBuffer().get(arr, off, len));
+	}
+
+
+	@FunctionalInterface
+	private interface CopyFromByteBuffer<Arr> {
+		void fromInto(@NotNull ByteBuffer buf, int offset, int len, @NotNull Arr into);
+	}
+
+	/**
+	 * The caller is responsible for asserting that {@code size >= 0}
+	 */
+	@NotNull
+	private <Arr> Arr expectArray(int size, @NotNull IntFunction<Arr> gen, int byteShiftAmount,
+								  @NotNull CopyFromByteBuffer<Arr> copy)
+		throws ReadException, EofException, OomException {
 		assert size >= 0;
-		long[] res;
+		Arr res;
 		try {
-			res = new long[size];
+			res = gen.apply(size);
 		} catch (OutOfMemoryError err) {
 			throw new OomException();
 		}
 		ByteBuffer buf;
 		try {
-			buf = ByteBuffer.allocate(size << 3).order(ByteOrder.BIG_ENDIAN);
+			buf = ByteBuffer.allocate(size << byteShiftAmount).order(ByteOrder.BIG_ENDIAN);
 		} catch (OutOfMemoryError err) {
-			oomExpectArray(size, false, res);
+			oomExpectArray(size, byteShiftAmount, res, copy);
 			return res;
 		}
 
 		if (reader.readFullyOrTrue(buf.array())) throw new EofException();
-		buf.asLongBuffer().get(res);
+		copy.fromInto(buf, 0, size, res);
 		return res;
 	}
 
-	private void oomExpectArray(long size, boolean isIntArrayOrElseLongArray, @NotNull Object array)
+	private <Arr> void oomExpectArray(long size, int byteShiftAmount, @NotNull Arr array,
+									  @NotNull CopyFromByteBuffer<Arr> copy)
 		throws ReadException, EofException {
 		System.gc();
 		ByteBuffer buf = this.buf8KiB;
 		int offset = 0;
 		CheckedReader<ReadException> reader = this.reader;
-		int byteShiftAmount = isIntArrayOrElseLongArray ? 2 : 3;
 		try {
 			while (size > 0) {
 				int bytes = (int) Math.min(size << byteShiftAmount, KiB8);
 				if (reader.readFullyOrTrue(buf.array(), bytes)) throw new EofException();
 				int objs = bytes >> byteShiftAmount;
-				if (isIntArrayOrElseLongArray) {
-					buf.asIntBuffer().get((int[]) array, offset, objs);
-				} else {
-					buf.asLongBuffer().get((long[]) array, offset, objs);
-				}
+				copy.fromInto(buf, offset, objs, array);
 				offset += objs;
 				size -= objs;
 			}
@@ -210,21 +227,16 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 	 * <a href="https://docs.oracle.com/javase/8/docs/api/java/io/DataInput.html#modified-utf-8">modified UTF-8</a>
 	 * format
 	 *
-	 * <p>This method does not throw a checked {@link OomException} since the maximum amount of memory it can
-	 * allocate is {@code 0.32 MiB}
+	 * <p>It is unlikely for this method to throw a checked {@link OomException}, since the maximum amount of
+	 * memory it can allocate is {@code 0.32 MiB}
 	 *
 	 * @see java.io.DataInput#readUTF()
 	 */
 	@NotNull
 	public String expectModifiedUtf8() throws ReadException, CheckedBigEndianDataInput.EofException,
-											  ModifiedUtf8DataFormatException {
+											  OomException, ModifiedUtf8DataFormatException {
 		int bytes = expectShort();
-		byte[] encoded;
-		try {
-			encoded = expectByteArray(bytes);
-		} catch (OomException ex) {
-			throw new RuntimeException(ex);
-		}
+		byte[] encoded = expectByteArray(bytes);
 		char[] decoded = new char[bytes];
 		int chars = 0;
 		for (int i = 0; i < bytes; ++i) {
