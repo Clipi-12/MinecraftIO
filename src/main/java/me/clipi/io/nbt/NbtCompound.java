@@ -25,6 +25,18 @@ public class NbtCompound implements NestedToString {
 	private @Nullable GrowableArray<double[]> doubles;
 	private @Nullable GrowableArray<@NotNull Object[]> objects;
 
+	private void shrinkToFit() {
+		keys.tryShrinkToFit();
+		types.tryShrinkToFit();
+		if (bytes != null) bytes.tryShrinkToFit();
+		if (shorts != null) shorts.tryShrinkToFit();
+		if (ints != null) ints.tryShrinkToFit();
+		if (longs != null) longs.tryShrinkToFit();
+		if (floats != null) floats.tryShrinkToFit();
+		if (doubles != null) doubles.tryShrinkToFit();
+		if (objects != null) objects.tryShrinkToFit();
+	}
+
 	private void addKey(@NotNull String key, byte nbtType) throws NbtParseException.DuplicatedKey, OomException {
 		@NotNull String[] keys = this.keys.inner;
 		int len = this.types.getSize();
@@ -32,44 +44,45 @@ public class NbtCompound implements NestedToString {
 		for (--len; len >= 0; --len) {
 			if (key.equals(keys[len])) throw new NbtParseException.DuplicatedKey(key, this);
 		}
-		GrowableArray.add(this.keys, key);
-		GrowableArray.add(types, nbtType);
+		GrowableArray.add(this.keys, key, this::shrinkToFit);
+		GrowableArray.add(types, nbtType, this::shrinkToFit);
 	}
 
 	// <editor-fold defaultstate="collapsed" desc="add methods">
 	void addByte(@NotNull String key, byte value) throws NbtParseException.DuplicatedKey, OomException {
 		addKey(key, NbtType.tagByte);
-		GrowableArray.add(bytes == null ? bytes = GrowableArray.bytes() : bytes, value);
+		GrowableArray.add(bytes == null ? bytes = GrowableArray.bytes() : bytes, value, this::shrinkToFit);
 	}
 
 	void addShort(@NotNull String key, short value) throws NbtParseException.DuplicatedKey, OomException {
 		addKey(key, NbtType.tagShort);
-		GrowableArray.add(shorts == null ? shorts = GrowableArray.shorts() : shorts, value);
+		GrowableArray.add(shorts == null ? shorts = GrowableArray.shorts() : shorts, value, this::shrinkToFit);
 	}
 
 	void addInt(@NotNull String key, int value) throws NbtParseException.DuplicatedKey, OomException {
 		addKey(key, NbtType.tagInt);
-		GrowableArray.add(ints == null ? ints = GrowableArray.ints() : ints, value);
+		GrowableArray.add(ints == null ? ints = GrowableArray.ints() : ints, value, this::shrinkToFit);
 	}
 
 	void addLong(@NotNull String key, long value) throws NbtParseException.DuplicatedKey, OomException {
 		addKey(key, NbtType.tagLong);
-		GrowableArray.add(longs == null ? longs = GrowableArray.longs() : longs, value);
+		GrowableArray.add(longs == null ? longs = GrowableArray.longs() : longs, value, this::shrinkToFit);
 	}
 
 	void addFloat(@NotNull String key, float value) throws NbtParseException.DuplicatedKey, OomException {
 		addKey(key, NbtType.tagFloat);
-		GrowableArray.add(floats == null ? floats = GrowableArray.floats() : floats, value);
+		GrowableArray.add(floats == null ? floats = GrowableArray.floats() : floats, value, this::shrinkToFit);
 	}
 
 	void addDouble(@NotNull String key, double value) throws NbtParseException.DuplicatedKey, OomException {
 		addKey(key, NbtType.tagDouble);
-		GrowableArray.add(doubles == null ? doubles = GrowableArray.doubles() : doubles, value);
+		GrowableArray.add(doubles == null ? doubles = GrowableArray.doubles() : doubles, value, this::shrinkToFit);
 	}
 
 	private void addObject(@NotNull String key, @NotNull Object value, byte nbtType) throws NbtParseException.DuplicatedKey, OomException {
 		addKey(key, nbtType);
-		GrowableArray.add(objects == null ? objects = GrowableArray.generic(Object.class) : objects, value);
+		GrowableArray.add(objects == null ? objects = GrowableArray.generic(Object.class) : objects, value,
+						  this::shrinkToFit);
 	}
 
 	void addByteArray(@NotNull String key, byte @NotNull [] value) throws NbtParseException.DuplicatedKey,

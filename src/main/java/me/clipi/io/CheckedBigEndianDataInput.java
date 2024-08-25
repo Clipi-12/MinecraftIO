@@ -250,6 +250,10 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 			decoded[chars++] = decodedChar;
 		}
 
-		return new String(decoded, 0, chars);
+		try {
+			return new String(decoded, 0, chars);
+		} catch (OutOfMemoryError err) {
+			throw new OomException();
+		}
 	}
 }
