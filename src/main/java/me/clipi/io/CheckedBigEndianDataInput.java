@@ -58,8 +58,7 @@ public class CheckedBigEndianDataInput<ReadException extends Exception> implemen
 		reader.closeCurrent();
 	}
 
-	public <E extends Throwable> void expectedByteFail(byte b, @NotNull CheckedByteConsumer<E> actualByte)
-		throws ReadException, EofException, E {
+	public <E extends Throwable> void expectedByteFail(byte b, @NotNull CheckedByteConsumer<E> actualByte) throws ReadException, EofException, E {
 		int res = reader.nextByteOrNeg();
 		if (res < 0) throw new EofException();
 		if (res != b) actualByte.accept((byte) res);
@@ -182,8 +181,7 @@ public class CheckedBigEndianDataInput<ReadException extends Exception> implemen
 	}
 
 	private <Arr> void oomExpectArray(long size, int byteShiftAmount, @NotNull Arr array,
-									  @NotNull CopyFromByteBuffer<Arr> copy)
-		throws ReadException, EofException {
+									  @NotNull CopyFromByteBuffer<Arr> copy) throws ReadException, EofException {
 		ByteBuffer buf = buf8KiB;
 		int offset = 0;
 		CheckedReader<ReadException> reader = this.reader;
@@ -212,8 +210,8 @@ public class CheckedBigEndianDataInput<ReadException extends Exception> implemen
 	 * @see java.io.DataInput#readUTF()
 	 */
 	@NotNull
-	public String expectModifiedUtf8() throws ReadException, EofException,
-											  OomException, ModifiedUtf8DataFormatException {
+	public String expectModifiedUtf8() throws ReadException, EofException, OomException,
+											  ModifiedUtf8DataFormatException {
 		int bytes = expectShort();
 		byte[] encoded = expectByteArray(bytes);
 		char[] decoded = OomAware.tryRun(oomAware, () -> new char[bytes]);

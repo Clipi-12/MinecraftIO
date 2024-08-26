@@ -28,7 +28,12 @@ import java.util.Objects;
 
 public final class FixedStack<T> {
 	public static final class FullStackException extends Exception {
-		private static final long serialVersionUID = -3596926931843992820L;
+		private static final long serialVersionUID = 6925719468686425117L;
+		public final int attemptedSize;
+
+		public FullStackException(int attemptedSize) {
+			this.attemptedSize = attemptedSize;
+		}
 	}
 
 	public static final class EmptyStackException extends Exception {
@@ -58,7 +63,7 @@ public final class FixedStack<T> {
 	}
 
 	public void push(@NotNull T element) throws FullStackException {
-		if (!tryPush(element)) throw new FullStackException();
+		if (!tryPush(element)) throw new FullStackException(backingArray.length + 1);
 	}
 
 	/**
@@ -68,7 +73,7 @@ public final class FixedStack<T> {
 	 */
 	@SafeVarargs
 	public final void pushAll(@NotNull T @NotNull ... elements) throws FullStackException {
-		if (!tryPushAll(elements)) throw new FullStackException();
+		if (!tryPushAll(elements)) throw new FullStackException(backingArray.length + elements.length);
 	}
 
 	@NotNull

@@ -90,13 +90,17 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> implement
 
 	@SuppressWarnings("SuspiciousSystemArraycopy")
 	private int ensureCapacityFor(int amount) throws OomException {
+		assert amount >= 0 & this.nextIdx >= 0;
+
 		ArrayType arr = this.inner;
-		int len = Array.getLength(arr), res = this.nextIdx, nextIdx;
-		if ((nextIdx = this.nextIdx + amount) > len) {
-			if (nextIdx <= 0 | nextIdx > MAX_ARRAY_SIZE) throw OomException.INSTANCE;
-			int newLen = Math.max(nextIdx, (int) Math.min(Long.highestOneBit(nextIdx) << 1, MAX_ARRAY_SIZE));
+		final int len = Array.getLength(arr),
+			res = this.nextIdx,
+			nextIdx = res + amount;
+		if (nextIdx < 0 | nextIdx > MAX_ARRAY_SIZE) throw OomException.INSTANCE;
+		if (nextIdx > len) {
+			int newLen = Math.max(nextIdx, (int) Math.min(Long.highestOneBit(nextIdx - 1) << 1, MAX_ARRAY_SIZE));
 			ArrayType newArr = OomAware.tryRunOrNull(oomAware, () -> gen.apply(newLen));
-			if (newArr == null) newArr = OomAware.tryRun(oomAware, () -> gen.apply(nextIdx));
+			if (newArr == null) newArr = OomAware.tryRun(null, () -> gen.apply(nextIdx));
 			System.arraycopy(arr, 0, newArr, 0, len);
 			this.inner = newArr;
 		}

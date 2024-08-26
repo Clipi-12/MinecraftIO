@@ -20,11 +20,13 @@
 
 package me.clipi.io.nbt.exceptions;
 
-import me.clipi.io.CheckedBigEndianDataInput;
+import me.clipi.io.CheckedBigEndianDataInput.ModifiedUtf8DataFormatException;
 import me.clipi.io.nbt.NbtCompound;
 import me.clipi.io.nbt.NbtType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 public abstract class NbtParseException extends Exception {
 	private static final long serialVersionUID = 8384205821108573134L;
@@ -34,7 +36,11 @@ public abstract class NbtParseException extends Exception {
 	}
 
 	private NbtParseException(@NotNull Throwable cause) {
-		super(cause);
+		super(Objects.requireNonNull(cause));
+	}
+
+	private NbtParseException(@NotNull String msg, @NotNull Throwable cause) {
+		super(msg, Objects.requireNonNull(cause));
 	}
 
 	public static class UnexpectedTagType extends NbtParseException {
@@ -63,13 +69,13 @@ public abstract class NbtParseException extends Exception {
 		}
 	}
 
-	public static class NegativeArraySize extends NbtParseException {
+	public static class InvalidDataStructureSize extends NbtParseException {
 		private static final long serialVersionUID = -1879877328482606036L;
 
 		public final int attemptedSize;
 
-		public NegativeArraySize(int attemptedSize) {
-			super("Negative array size: " + attemptedSize);
+		public InvalidDataStructureSize(int attemptedSize) {
+			super("Attempted to create an NBT data structure of size " + attemptedSize);
 			this.attemptedSize = attemptedSize;
 		}
 	}
@@ -90,8 +96,24 @@ public abstract class NbtParseException extends Exception {
 	public static class InvalidString extends NbtParseException {
 		private static final long serialVersionUID = -5635255741545922607L;
 
-		public InvalidString(@NotNull CheckedBigEndianDataInput.ModifiedUtf8DataFormatException cause) {
+		public InvalidString(@NotNull ModifiedUtf8DataFormatException cause) {
 			super(cause);
+		}
+	}
+
+	public static class EofException extends NbtParseException {
+		private static final long serialVersionUID = -5635255741545922607L;
+
+		public EofException(@NotNull me.clipi.io.EofException cause) {
+			super("The reader reached EOF unexpectedly", cause);
+		}
+	}
+
+	public static class NotEofException extends NbtParseException {
+		private static final long serialVersionUID = -5635255741545922607L;
+
+		public NotEofException(@NotNull me.clipi.io.NotEofException cause) {
+			super("The reader was supposed to reach EOF, but it did not", cause);
 		}
 	}
 }

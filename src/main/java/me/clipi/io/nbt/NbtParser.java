@@ -62,22 +62,30 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	}
 
 	@NotNull
-	public NbtRoot parseRoot() throws ReadException, EofException, NotEofException, OomException,
-									  NbtParseException, FixedStack.FullStackException {
-		di.expectedByteFail(NbtType.tagCompound, type -> {
-			throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
-		});
-		String name = readString();
-		NbtCompound root;
+	public NbtRoot parseRoot() throws ReadException, OomException, NbtParseException {
 		try {
-			root = readRootValue();
+			di.expectedByteFail(NbtType.tagCompound, type -> {
+				throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
+			});
+			String name = readString();
+			NbtCompound root;
+			try {
+				root = readRootValue();
+			} finally {
+				di.setOomAware(oomAware = null);
+				nestedTarget.clear();
+			}
+			di.expectEnd();
+			return new NbtRoot(name, root);
+		} catch (FixedStack.FullStackException ex) {
+			throw new NbtParseException.InvalidDataStructureSize(ex.attemptedSize);
+		} catch (NotEofException ex) {
+			throw new NbtParseException.NotEofException(ex);
+		} catch (EofException ex) {
+			throw new NbtParseException.EofException(ex);
 		} finally {
-			di.setOomAware(oomAware = null);
-			nestedTarget.clear();
+			closeCurrent();
 		}
-		di.expectEnd();
-		closeCurrent();
-		return new NbtRoot(name, root);
 	}
 
 	@NotNull
@@ -304,10 +312,9 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		}
 	}
 
-	private int readArraySize() throws ReadException, EofException, NbtParseException.NegativeArraySize, OomException {
+	private int readArraySize() throws ReadException, EofException, NbtParseException.InvalidDataStructureSize {
 		int size = di.expectInt();
-		if (size < 0) throw new NbtParseException.NegativeArraySize(size);
-		if (size > GrowableArray.MAX_ARRAY_SIZE) throw OomException.INSTANCE;
+		if (size < 0 | size > GrowableArray.MAX_ARRAY_SIZE) throw new NbtParseException.InvalidDataStructureSize(size);
 		return size;
 	}
 
