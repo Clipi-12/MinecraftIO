@@ -20,9 +20,10 @@
 
 package me.clipi.io.nbt;
 
-import me.clipi.io.*;
+import me.clipi.io.CheckedBigEndianDataInput;
+import me.clipi.io.CheckedReader;
+import me.clipi.io.OomException;
 import me.clipi.io.nbt.exceptions.NbtParseException;
-import me.clipi.io.util.FixedStack;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -75,26 +76,21 @@ public class NbtTest {
 	}
 
 	@Test
-	public void testAllTypes() throws IOException, OomException, NbtParseException,
-									  EofException, NotEofException,
-									  FixedStack.FullStackException {
+	public void testAllTypes() throws IOException, OomException, NbtParseException {
 		try (NbtParser<IOException> parser = getParser("nbt/all-types.nbt.gz")) {
 			Assertions.assertEquals(getString("nbt/output-all-types.txt"), parser.parseRoot().nestedToString());
 		}
 	}
 
 	@Test
-	public void testBigTest() throws IOException, OomException, NbtParseException,
-									 EofException, NotEofException, FixedStack.FullStackException {
+	public void testBigTest() throws IOException, OomException, NbtParseException {
 		try (NbtParser<IOException> parser = getParser("nbt/bigtest.nbt.gz")) {
 			Assertions.assertEquals(getString("nbt/output-bigtest.txt"), parser.parseRoot().nestedToString());
 		}
 	}
 
 	@Test
-	public void testMultipleInputs() throws IOException, OomException, NbtParseException, EofException,
-											NotEofException,
-											FixedStack.FullStackException {
+	public void testMultipleInputs() throws IOException, OomException, NbtParseException {
 		try (NbtParser<IOException> parser = getParser("nbt/all-types.nbt.gz", "nbt/bigtest.nbt.gz")) {
 			Assertions.assertEquals(getString("nbt/output-all-types.txt"), parser.parseRoot().nestedToString());
 			Assertions.assertEquals(getString("nbt/output-bigtest.txt"), parser.parseRoot().nestedToString());

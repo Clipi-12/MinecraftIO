@@ -92,8 +92,7 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> implement
 	private int ensureCapacityFor(int amount) throws OomException {
 		assert amount >= 0 & this.nextIdx >= 0;
 
-		ArrayType arr = this.inner;
-		final int len = Array.getLength(arr),
+		final int len = Array.getLength(inner),
 			res = this.nextIdx,
 			nextIdx = res + amount;
 		if (nextIdx < 0 | nextIdx > MAX_ARRAY_SIZE) throw OomException.INSTANCE;
@@ -101,8 +100,13 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> implement
 			int newLen = Math.max(nextIdx, (int) Math.min(Long.highestOneBit(nextIdx - 1) << 1, MAX_ARRAY_SIZE));
 			ArrayType newArr = OomAware.tryRunOrNull(oomAware, () -> gen.apply(newLen));
 			if (newArr == null) newArr = OomAware.tryRun(null, () -> gen.apply(nextIdx));
-			System.arraycopy(arr, 0, newArr, 0, len);
-			this.inner = newArr;
+
+			// We shouldn't create a stack variable to reference inner since inner might have been changed to a
+			// smaller array in order to fit the new array in ram. By maintaining a stack variable we forbid java from
+			// gc-ing inner right before creating the new array.
+			System.arraycopy(inner, 0, newArr, 0, len);
+
+			inner = newArr;
 		}
 		this.nextIdx = nextIdx;
 		return res;

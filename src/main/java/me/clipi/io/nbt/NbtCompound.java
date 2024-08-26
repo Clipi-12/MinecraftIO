@@ -51,6 +51,19 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 	NbtCompound() {
 	}
 
+	public int entries() {
+		int len = types.getSize();
+		assert len == keys.getSize() &
+			   len == (bytes == null ? 0 : bytes.getSize()) +
+					  (shorts == null ? 0 : shorts.getSize()) +
+					  (ints == null ? 0 : ints.getSize()) +
+					  (longs == null ? 0 : longs.getSize()) +
+					  (floats == null ? 0 : floats.getSize()) +
+					  (doubles == null ? 0 : doubles.getSize()) +
+					  (objects == null ? 0 : objects.getSize());
+		return len;
+	}
+
 	public void recursivelyShrinkToFit() {
 		keys.tryShrinkToFit();
 		types.tryShrinkToFit();
@@ -65,7 +78,7 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 			Object[] objects = this.objects.inner;
 			byte[] types = this.types.inner;
 			int count = 0;
-			for (int i = this.types.getSize() - 1; i >= 0; --i) {
+			for (int i = entries() - 1; i >= 0; --i) {
 				if (types[i] == NbtType.tagCompound)
 					((NbtCompound) objects[count++]).recursivelyShrinkToFit();
 			}
@@ -79,9 +92,7 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 
 	private void addKey(@NotNull String key, byte nbtType) throws NbtParseException.DuplicatedKey, OomException {
 		@NotNull String[] keys = this.keys.inner;
-		int len = this.types.getSize();
-		assert this.keys.getSize() == len;
-		for (--len; len >= 0; --len) {
+		for (int len = entries() - 1; len >= 0; --len) {
 			if (key.equals(keys[len])) throw new NbtParseException.DuplicatedKey(key, this);
 		}
 		GrowableArray.add(this.keys, key);
@@ -157,10 +168,7 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 	@Nullable
 	public NbtType typeForKey(@NotNull String key) {
 		String[] keys = this.keys.inner;
-		int len = this.types.getSize();
-		assert this.keys.getSize() == len;
-
-		for (int i = 0; i < len; ++i) {
+		for (int i = entries() - 1; i >= 0; --i) {
 			if (key.equals(keys[i])) {
 				return NbtType.values()[types.inner[i]];
 			}
@@ -168,14 +176,12 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 		return null;
 	}
 
-	private int indexForKeyWithType(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType,
-																			  NbtKeyNotFoundException {
+	private int indexForKeyWithTypeOrNeg(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType {
 		assert nbtType > 0 & nbtType < 13;
 
 		String[] keys = this.keys.inner;
 		byte[] types = this.types.inner;
-		int len = this.types.getSize();
-		assert this.keys.getSize() == len;
+		int len = entries();
 
 		int count = 0;
 		boolean isObj = nbtType >= NbtType.tagByteArray;
@@ -188,74 +194,126 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 			}
 			if (types[i] == nbtType | (isObj && types[i] >= NbtType.tagByteArray)) ++count;
 		}
-		throw new NbtKeyNotFoundException(key, this);
+		return -1;
+	}
+
+	private int indexForKeyWithTypeOrThrow(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
+		int i = indexForKeyWithTypeOrNeg(key, nbtType);
+		if (i < 0) throw new NbtKeyNotFoundException(key, this);
+		return i;
 	}
 
 	// <editor-fold defaultstate="collapsed" desc="get methods">
-	public byte getByte(@NotNull String key) throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
+	public byte getByteOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+														   NbtKeyNotFoundException {
+		int idx = indexForKeyWithTypeOrThrow(key, NbtType.tagByte);
 		assert bytes != null;
-		return bytes.inner[indexForKeyWithType(key, NbtType.tagByte)];
+		return bytes.inner[idx];
 	}
 
-	public short getShort(@NotNull String key) throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
+	public short getShortOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+															 NbtKeyNotFoundException {
+		int idx = indexForKeyWithTypeOrThrow(key, NbtType.tagShort);
 		assert shorts != null;
-		return shorts.inner[indexForKeyWithType(key, NbtType.tagShort)];
+		return shorts.inner[idx];
 	}
 
-	public int getInt(@NotNull String key) throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
+	public int getIntOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+														 NbtKeyNotFoundException {
+		int idx = indexForKeyWithTypeOrThrow(key, NbtType.tagInt);
 		assert ints != null;
-		return ints.inner[indexForKeyWithType(key, NbtType.tagInt)];
+		return ints.inner[idx];
 	}
 
-	public long getLong(@NotNull String key) throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
+	public long getLongOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+														   NbtKeyNotFoundException {
+		int idx = indexForKeyWithTypeOrThrow(key, NbtType.tagLong);
 		assert longs != null;
-		return longs.inner[indexForKeyWithType(key, NbtType.tagLong)];
+		return longs.inner[idx];
 	}
 
-	public float getFloat(@NotNull String key) throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
+	public float getFloatOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+															 NbtKeyNotFoundException {
+		int idx = indexForKeyWithTypeOrThrow(key, NbtType.tagFloat);
 		assert floats != null;
-		return floats.inner[indexForKeyWithType(key, NbtType.tagFloat)];
+		return floats.inner[idx];
 	}
 
-	public double getDouble(@NotNull String key) throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
+	public double getDoubleOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+															   NbtKeyNotFoundException {
+		int idx = indexForKeyWithTypeOrThrow(key, NbtType.tagDouble);
 		assert bytes != null;
-		return bytes.inner[indexForKeyWithType(key, NbtType.tagDouble)];
+		return bytes.inner[idx];
 	}
 
-	public byte @NotNull [] getByteArray(@NotNull String key) throws NbtParseException.UnexpectedTagType,
-																	 NbtKeyNotFoundException {
-		assert objects != null;
-		return (byte @NotNull []) objects.inner[indexForKeyWithType(key, NbtType.tagByteArray)];
+	@SuppressWarnings("unchecked")
+	@Nullable
+	private <T> T getObjectOrNull(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType {
+		int idx = indexForKeyWithTypeOrNeg(key, nbtType);
+		assert idx < 0 | objects != null;
+		return idx < 0 ? null : (T) objects.inner[idx];
 	}
 
-	public int @NotNull [] getIntArray(@NotNull String key) throws NbtParseException.UnexpectedTagType,
-																   NbtKeyNotFoundException {
-		assert objects != null;
-		return (int @NotNull []) objects.inner[indexForKeyWithType(key, NbtType.tagIntArray)];
+	@NotNull
+	private <T> T getObjectOrThrow(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType,
+																			 NbtKeyNotFoundException {
+		T res = getObjectOrNull(key, nbtType);
+		if (res == null) throw new NbtKeyNotFoundException(key, this);
+		return res;
 	}
 
-	public long @NotNull [] getLongArray(@NotNull String key) throws NbtParseException.UnexpectedTagType,
-																	 NbtKeyNotFoundException {
-		assert objects != null;
-		return (long @NotNull []) objects.inner[indexForKeyWithType(key, NbtType.tagLongArray)];
+	public byte @Nullable [] getByteArrayOrNull(@NotNull String key) throws NbtParseException.UnexpectedTagType {
+		return getObjectOrNull(key, NbtType.tagByteArray);
 	}
 
-	public @NotNull String getString(@NotNull String key) throws NbtParseException.UnexpectedTagType,
-																 NbtKeyNotFoundException {
-		assert objects != null;
-		return (@NotNull String) objects.inner[indexForKeyWithType(key, NbtType.tagString)];
+	public int @Nullable [] getIntArrayOrNull(@NotNull String key) throws NbtParseException.UnexpectedTagType {
+		return getObjectOrNull(key, NbtType.tagIntArray);
 	}
 
-	public @NotNull NbtList getList(@NotNull String key) throws NbtParseException.UnexpectedTagType,
-																NbtKeyNotFoundException {
-		assert objects != null;
-		return (@NotNull NbtList) objects.inner[indexForKeyWithType(key, NbtType.tagList)];
+	public long @Nullable [] getLongArrayOrNull(@NotNull String key) throws NbtParseException.UnexpectedTagType {
+		return getObjectOrNull(key, NbtType.tagLongArray);
 	}
 
-	public @NotNull NbtCompound getMap(@NotNull String key) throws NbtParseException.UnexpectedTagType,
-																   NbtKeyNotFoundException {
-		assert objects != null;
-		return (@NotNull NbtCompound) objects.inner[indexForKeyWithType(key, NbtType.tagCompound)];
+	public @Nullable String getStringOrNull(@NotNull String key) throws NbtParseException.UnexpectedTagType {
+		return getObjectOrNull(key, NbtType.tagString);
+	}
+
+	public @Nullable NbtList getListOrNull(@NotNull String key) throws NbtParseException.UnexpectedTagType {
+		return getObjectOrNull(key, NbtType.tagList);
+	}
+
+	public @Nullable NbtCompound getMapOrNull(@NotNull String key) throws NbtParseException.UnexpectedTagType {
+		return getObjectOrNull(key, NbtType.tagCompound);
+	}
+
+	public byte @NotNull [] getByteArrayOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+																			NbtKeyNotFoundException {
+		return getObjectOrThrow(key, NbtType.tagByteArray);
+	}
+
+	public int @NotNull [] getIntArrayOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+																		  NbtKeyNotFoundException {
+		return getObjectOrThrow(key, NbtType.tagIntArray);
+	}
+
+	public long @NotNull [] getLongArrayOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+																			NbtKeyNotFoundException {
+		return getObjectOrThrow(key, NbtType.tagLongArray);
+	}
+
+	public @NotNull String getStringOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+																		NbtKeyNotFoundException {
+		return getObjectOrThrow(key, NbtType.tagString);
+	}
+
+	public @NotNull NbtList getListOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+																	   NbtKeyNotFoundException {
+		return getObjectOrThrow(key, NbtType.tagList);
+	}
+
+	public @NotNull NbtCompound getMapOrThrow(@NotNull String key) throws NbtParseException.UnexpectedTagType,
+																		  NbtKeyNotFoundException {
+		return getObjectOrThrow(key, NbtType.tagCompound);
 	}
 	// </editor-fold>
 
@@ -270,13 +328,11 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 	public void toString(@NotNull Nester nester) {
 		String[] keys = this.keys.inner;
 		byte[] types = this.types.inner;
-		int len = this.types.getSize();
-		assert this.keys.getSize() == len;
 
 		GrowableArray<?>[] arrays = { null, bytes, shorts, ints, longs, floats, doubles, objects };
 		int[] count = new int[8];
 
-		for (int i = 0; i < len; ++i) {
+		for (int i = 0, len = entries(); i < len; ++i) {
 			int type = Math.min(types[i], NbtType.tagByteArray);
 			nester.append(keys[i], Array.get(arrays[type].inner, count[type]++));
 		}

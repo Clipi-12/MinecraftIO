@@ -116,4 +116,12 @@ public abstract class NbtParseException extends Exception {
 			super("The reader was supposed to reach EOF, but it did not", cause);
 		}
 	}
+
+	public static class IncorrectSchema extends NbtParseException {
+		private static final long serialVersionUID = -5635255741545922607L;
+
+		public IncorrectSchema() {
+			super("The specified schema was not met");
+		}
+	}
 }

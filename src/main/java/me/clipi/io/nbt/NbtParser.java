@@ -26,6 +26,10 @@ import me.clipi.io.NotEofException;
 import me.clipi.io.OomException;
 import me.clipi.io.OomException.OomAware;
 import me.clipi.io.nbt.exceptions.NbtParseException;
+import me.clipi.io.nbt.schema.NbtCompoundSchema;
+import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema;
+import me.clipi.io.nbt.schema.NbtListOfListsSchema;
+import me.clipi.io.nbt.schema.NbtRootSchema;
 import me.clipi.io.util.FixedStack;
 import me.clipi.io.util.GrowableArray;
 import org.jetbrains.annotations.NotNull;
@@ -39,13 +43,13 @@ import java.util.function.IntFunction;
 public class NbtParser<ReadException extends Exception> implements AutoCloseable {
 	private final CheckedBigEndianDataInput<ReadException> di;
 	/**
-	 * FixedStack of objects that are either NbtCompound or ListOfLists.
+	 * FixedStack of objects that are either CompoundTarget or ListOfListsTarget.
 	 * If the project used Java 17, this could be improved with sealed classes
 	 *
 	 * <p>The wiki says that <pre>Compound and List tags may not be nested beyond a depth of {@code 512}</pre>,
 	 * but we allow for {@code 1024}, and an additional tag for the root
 	 */
-	private final FixedStack<Object> nestedTarget = new FixedStack<>(Object.class, 1025);
+	private final FixedStack<ParsingTarget> nestedTarget = new FixedStack<>(ParsingTarget.class, 1025);
 	private @Nullable OomAware oomAware;
 
 	public NbtParser(@NotNull CheckedBigEndianDataInput<ReadException> di) {
@@ -63,14 +67,26 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 
 	@NotNull
 	public NbtRoot parseRoot() throws ReadException, OomException, NbtParseException {
+		return parseRoot(NbtRootSchema.ALWAYS);
+	}
+
+	@NotNull
+	private static <T> T nonNullSchema(@Nullable T schema) throws NbtParseException.IncorrectSchema {
+		if (schema == null) throw new NbtParseException.IncorrectSchema();
+		return schema;
+	}
+
+	@NotNull
+	public NbtRoot parseRoot(@NotNull NbtRootSchema schema) throws ReadException, OomException, NbtParseException {
 		try {
 			di.expectedByteFail(NbtType.tagCompound, type -> {
 				throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
 			});
 			String name = readString();
+			NbtCompoundSchema rootValueSchema = nonNullSchema(schema.schemaForCompound(name));
 			NbtCompound root;
 			try {
-				root = readRootValue();
+				root = readRootValue(rootValueSchema);
 			} finally {
 				di.setOomAware(oomAware = null);
 				nestedTarget.clear();
@@ -89,83 +105,106 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	}
 
 	@NotNull
-	private NbtCompound readRootValue() throws ReadException, EofException, OomException,
-											   NbtParseException, FixedStack.FullStackException {
-		FixedStack<Object> nestedTarget = this.nestedTarget;
+	private NbtCompound readRootValue(@NotNull NbtCompoundSchema schema)
+		throws ReadException, EofException, OomException, NbtParseException, FixedStack.FullStackException {
+		FixedStack<ParsingTarget> nestedTarget = this.nestedTarget;
 		NbtCompound root = new NbtCompound();
 		di.setOomAware(oomAware = root);
-		nestedTarget.push(root);
-		NbtCompound target = root;
+		CompoundTarget target = new CompoundTarget(root, schema);
+		nestedTarget.push(target);
 		for (; ; ) {
-			ListOfLists nextTarget = readMapEntry(target);
+			ListOfListsTarget nextTarget = readMapEntry(target);
 			if (nextTarget == null) return root;
 			target = readListEntries(nextTarget);
 		}
 	}
 
 	/**
-	 * @return whether the root has been reached or a ListOfLists target is on top of the stack
+	 * @return whether the root has been reached or a ListOfListsTarget target is on top of the stack
 	 */
 	@Nullable
-	private ListOfLists readMapEntry(@NotNull NbtCompound target) throws ReadException, EofException, OomException,
-																		 NbtParseException,
-																		 FixedStack.FullStackException {
-		FixedStack<Object> nestedTarget = this.nestedTarget;
+	private ListOfListsTarget readMapEntry(@NotNull CompoundTarget targetAndSchema)
+		throws ReadException, EofException, OomException, NbtParseException, FixedStack.FullStackException {
+		FixedStack<ParsingTarget> nestedTarget = this.nestedTarget;
+		NbtCompound target = targetAndSchema.compound;
+		NbtCompoundSchema schema = targetAndSchema.schema;
 		newTarget:
 		for (; ; ) {
 			int stackSize = nestedTarget.getSize();
 			for (; ; ) {
 				int type = di.expectByte();
 				if (type == NbtType.tagEnd) {
+					if (!schema.allowsSizeToBe(target.entries())) throw new NbtParseException.IncorrectSchema();
+
 					try {
 						nestedTarget.pop(); // pop self
 					} catch (FixedStack.EmptyStackException ex) {
 						throw new IllegalStateException(ex);
 					}
 
-					Object parent = nestedTarget.tryPeek();
+					ParsingTarget parent = nestedTarget.tryPeek();
 					if (parent == null) return null;
-					if (parent instanceof ListOfLists) return (ListOfLists) parent;
-					target = (NbtCompound) parent;
+					if (parent instanceof ListOfListsTarget) return (ListOfListsTarget) parent;
+					CompoundTarget parentAsCompound = (CompoundTarget) parent;
+					target = parentAsCompound.compound;
+					schema = parentAsCompound.schema;
 					continue newTarget;
 				}
 				String key = readString();
 				switch (type) {
 					case NbtType.tagByte:
+						if (!schema.allowsByte(key)) throw new NbtParseException.IncorrectSchema();
 						target.addByte(key, (byte) di.expectByte());
 						break;
 					case NbtType.tagShort:
+						if (!schema.allowsShort(key)) throw new NbtParseException.IncorrectSchema();
 						target.addShort(key, (short) di.expectShort());
 						break;
 					case NbtType.tagInt:
+						if (!schema.allowsInt(key)) throw new NbtParseException.IncorrectSchema();
 						target.addInt(key, di.expectInt());
 						break;
 					case NbtType.tagLong:
+						if (!schema.allowsLong(key)) throw new NbtParseException.IncorrectSchema();
 						target.addLong(key, di.expectLong());
 						break;
 					case NbtType.tagFloat:
+						if (!schema.allowsFloat(key)) throw new NbtParseException.IncorrectSchema();
 						target.addFloat(key, di.expectFloat());
 						break;
 					case NbtType.tagDouble:
+						if (!schema.allowsDouble(key)) throw new NbtParseException.IncorrectSchema();
 						target.addDouble(key, di.expectDouble());
 						break;
-					case NbtType.tagByteArray:
-						target.addByteArray(key, readByteArray());
+					case NbtType.tagByteArray: {
+						int arrayLen = readArrayLen();
+						if (!schema.allowsByteArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
+						target.addByteArray(key, di.expectByteArray(arrayLen));
 						break;
-					case NbtType.tagIntArray:
-						target.addIntArray(key, readIntArray());
+					}
+					case NbtType.tagIntArray: {
+						int arrayLen = readArrayLen();
+						if (!schema.allowsIntArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
+						target.addIntArray(key, di.expectIntArray(arrayLen));
 						break;
-					case NbtType.tagLongArray:
-						target.addLongArray(key, readLongArray());
+					}
+					case NbtType.tagLongArray: {
+						int arrayLen = readArrayLen();
+						if (!schema.allowsLongArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
+						target.addLongArray(key, di.expectLongArray(arrayLen));
 						break;
-					case NbtType.tagString:
-						target.addString(key, readString());
+					}
+					case NbtType.tagString: {
+						int stringLen = di.expectShort();
+						if (!schema.allowsString(key, stringLen)) throw new NbtParseException.IncorrectSchema();
+						target.addString(key, readString((short) stringLen));
 						break;
-					case NbtType.tagList:
-						NbtList list = readListValue(key);
+					}
+					case NbtType.tagList: {
+						NbtList list = readListValue(key, schema);
 						if (list == null) {
 							try {
-								return (ListOfLists) nestedTarget.peek();
+								return (ListOfListsTarget) nestedTarget.peek();
 							} catch (FixedStack.EmptyStackException ex) {
 								throw new IllegalStateException(ex);
 							}
@@ -173,19 +212,25 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 						target.addList(key, list);
 						if (stackSize != nestedTarget.getSize()) {
 							try {
-								target = (NbtCompound) nestedTarget.peek();
+								CompoundTarget newTarget = (CompoundTarget) nestedTarget.peek();
+								target = newTarget.compound;
+								schema = newTarget.schema;
 							} catch (FixedStack.EmptyStackException ex) {
 								throw new IllegalStateException(ex);
 							}
 							continue newTarget;
 						}
 						break;
-					case NbtType.tagCompound:
+					}
+					case NbtType.tagCompound: {
 						NbtCompound newDepth = new NbtCompound();
-						nestedTarget.push(newDepth);
+						NbtCompoundSchema newSchema = nonNullSchema(schema.schemaForCompound(key));
+						nestedTarget.push(new CompoundTarget(newDepth, newSchema));
 						target.addMap(key, newDepth);
 						target = newDepth;
+						schema = newSchema;
 						continue newTarget;
+					}
 					default:
 						throw new NbtParseException.UnknownTagType(type);
 				}
@@ -194,18 +239,18 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	}
 
 	@NotNull
-	private NbtCompound readListEntries(@NotNull ListOfLists target) throws ReadException, EofException, OomException,
-																			NbtParseException,
-																			FixedStack.FullStackException {
-		FixedStack<Object> nestedTarget = this.nestedTarget;
+	private CompoundTarget readListEntries(@NotNull ListOfListsTarget target)
+		throws ReadException, EofException, OomException, NbtParseException, FixedStack.FullStackException {
+		FixedStack<ParsingTarget> nestedTarget = this.nestedTarget;
 		newTarget:
 		for (; ; ) {
+			NbtListOfListsSchema schema = target.schema;
 			@NotNull NbtList[] array = target.array;
-			int len = array.length;
-			int stackSize = nestedTarget.getSize();
+			final int len = array.length, stackSize = nestedTarget.getSize();
+			int i = target.nextIdx;
 			for (; ; ) {
-				if (target.nextIdx >= len) {
-					Object parent;
+				if (i >= len) {
+					ParsingTarget parent;
 
 					try {
 						nestedTarget.pop(); // pop self
@@ -213,25 +258,27 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 					} catch (FixedStack.EmptyStackException ex) {
 						throw new IllegalStateException(ex);
 					}
-					if (parent instanceof NbtCompound) {
+					if (parent instanceof CompoundTarget) {
 						assert target.key != null;
 
-						NbtCompound parentAsMap = (NbtCompound) parent;
-						parentAsMap.addList(target.key, target.result);
+						CompoundTarget parentAsMap = (CompoundTarget) parent;
+						parentAsMap.compound.addList(target.key, target.result);
 						return parentAsMap;
 					}
 					assert target.key == null;
 
-					ListOfLists parentAsList = (ListOfLists) parent;
+					ListOfListsTarget parentAsList = (ListOfListsTarget) parent;
 					parentAsList.array[parentAsList.nextIdx++] = target.result;
+					target.nextIdx = i;
 					target = parentAsList;
 					continue newTarget;
 				}
 
-				NbtList list = readListValue(null);
+				NbtList list = readListValue(i, schema);
 				if (list == null) {
+					target.nextIdx = i;
 					try {
-						target = (ListOfLists) nestedTarget.peek();
+						target = (ListOfListsTarget) nestedTarget.peek();
 					} catch (FixedStack.EmptyStackException ex) {
 						throw new IllegalStateException(ex);
 					}
@@ -239,72 +286,177 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				}
 				if (stackSize != nestedTarget.getSize()) {
 					try {
-						return (NbtCompound) nestedTarget.peek();
+						return (CompoundTarget) nestedTarget.peek();
 					} catch (FixedStack.EmptyStackException ex) {
 						throw new IllegalStateException(ex);
 					}
 				}
-				array[target.nextIdx++] = list;
+				array[i++] = list;
 			}
+		}
+	}
+
+	private NbtList readListOfCompoundsValue(NbtListOfCompoundsSchema schema, int len)
+		throws ReadException, OomException, EofException, FixedStack.FullStackException, NbtParseException {
+		OomAware oomAwareOnlyFirstTimeCalled = new OomAware() {
+			private boolean skipCall;
+
+			@Override
+			public void trySaveFromOom() {
+				if (skipCall) return;
+				skipCall = true;
+				OomAware oomAware = NbtParser.this.oomAware;
+				if (oomAware != null) oomAware.trySaveFromOom();
+			}
+		};
+		NbtCompound[] maps = readGenericArray(len, NbtCompound[]::new, () ->
+			// Wrap in OomAware.tryRun because there may be a lot of instances
+			OomAware.tryRun(oomAwareOnlyFirstTimeCalled, NbtCompound::new));
+		CompoundTarget[] targets = readGenericArray(
+			len, CompoundTarget[]::new,
+			new ReadGeneric<CompoundTarget, ReadException>() {
+				@Override
+				public @NotNull CompoundTarget read() {
+					throw new AssertionError();
+				}
+
+				@Override
+				public @NotNull CompoundTarget read(int i) throws OomException, NbtParseException {
+					NbtCompoundSchema compoundSchema = nonNullSchema(schema.schemaForCompound(i));
+					return OomAware.tryRun(oomAwareOnlyFirstTimeCalled,
+										   () -> new CompoundTarget(maps[i], compoundSchema));
+				}
+			});
+		nestedTarget.pushAll(targets);
+		return NbtList.create(maps);
+	}
+
+	/**
+	 * Reads a NBT List value if it is not nested (List of Lists or List of Maps).
+	 * <p>If the parsed NBT List is a List of Lists, it will return null, and a ListOfListsTarget target will be
+	 * added to the top of the stack.
+	 * <p>If the parsed NBT List is a List of Maps, it will return a List with empty NbtCompound's. Those empty
+	 * NbtCompound's will be added to the top of the stack as CompoundTarget's, so that they can be parsed.
+	 */
+	@Nullable
+	private NbtList readListValue(int index, @NotNull NbtListOfListsSchema parentSchema) throws ReadException,
+																								EofException,
+																								OomException,
+																								NbtParseException,
+																								FixedStack.FullStackException {
+		int type = di.expectByte();
+		int len = readArrayLen();
+		if (len == 0) {
+			if (!parentSchema.allowsEmptyList(index)) throw new NbtParseException.IncorrectSchema();
+			return NbtList.EMPTY_LIST;
+		}
+		switch (type) {
+			case NbtType.tagEnd:
+				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
+			case NbtType.tagByte:
+				if (!parentSchema.allowsByteList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectByteArray(len));
+			case NbtType.tagShort:
+				if (!parentSchema.allowsShortList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectShortArray(len));
+			case NbtType.tagInt:
+				if (!parentSchema.allowsIntList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectIntArray(len));
+			case NbtType.tagLong:
+				if (!parentSchema.allowsLongList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectLongArray(len));
+			case NbtType.tagFloat:
+				if (!parentSchema.allowsFloatList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectFloatArray(len));
+			case NbtType.tagDouble:
+				if (!parentSchema.allowsDoubleList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectDoubleArray(len));
+			case NbtType.tagByteArray:
+				if (!parentSchema.allowsByteArrayList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(readGenericArray(len, byte[][]::new, this::readByteArray));
+			case NbtType.tagIntArray:
+				if (!parentSchema.allowsIntArrayList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(readGenericArray(len, int[][]::new, this::readIntArray));
+			case NbtType.tagLongArray:
+				if (!parentSchema.allowsLongArrayList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(readGenericArray(len, long[][]::new, this::readLongArray));
+			case NbtType.tagString:
+				if (!parentSchema.allowsStringList(index, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(readGenericArray(len, String[]::new, this::readString));
+			case NbtType.tagList:
+				NbtListOfListsSchema schema = nonNullSchema(parentSchema.schemaForListOfLists(index, len));
+				nestedTarget.push(OomAware.tryRun(oomAware, () -> new ListOfListsTarget(null, len, schema)));
+				return null;
+			case NbtType.tagCompound:
+				return readListOfCompoundsValue(nonNullSchema(parentSchema.schemaForListOfCompounds(index, len)), len);
+			default:
+				throw new NbtParseException.UnknownTagType(type);
 		}
 	}
 
 	/**
 	 * Reads a NBT List value if it is not nested (List of Lists or List of Maps).
-	 * <p>If the parsed NBT List is a List of Lists, it will return null, and a ListOfLists target will be added to
-	 * the top of the stack
+	 * <p>If the parsed NBT List is a List of Lists, it will return null, and a ListOfListsTarget target will be
+	 * added to the top of the stack.
 	 * <p>If the parsed NBT List is a List of Maps, it will return a List with empty NbtCompound's. Those empty
-	 * NbtCompound's will be added to the top of the stack, so that they can be parsed
+	 * NbtCompound's will be added to the top of the stack as CompoundTarget's, so that they can be parsed.
 	 */
 	@Nullable
-	private NbtList readListValue(@Nullable String key) throws ReadException, EofException, OomException,
-															   NbtParseException, FixedStack.FullStackException {
+	private NbtList readListValue(@NotNull String key, @NotNull NbtCompoundSchema parentSchema)
+		throws ReadException, EofException, OomException, NbtParseException, FixedStack.FullStackException {
 		int type = di.expectByte();
-		int size = readArraySize();
-		if (size == 0) return NbtList.EMPTY_LIST;
+		int len = readArrayLen();
+		if (len == 0) {
+			if (!parentSchema.allowsEmptyList(key)) throw new NbtParseException.IncorrectSchema();
+			return NbtList.EMPTY_LIST;
+		}
 		switch (type) {
 			case NbtType.tagEnd:
 				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
 			case NbtType.tagByte:
-				return NbtList.create(di.expectByteArray(size));
+				if (!parentSchema.allowsByteList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectByteArray(len));
 			case NbtType.tagShort:
-				return NbtList.create(di.expectShortArray(size));
+				if (!parentSchema.allowsShortList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectShortArray(len));
 			case NbtType.tagInt:
-				return NbtList.create(di.expectIntArray(size));
+				if (!parentSchema.allowsIntList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectIntArray(len));
 			case NbtType.tagLong:
-				return NbtList.create(di.expectLongArray(size));
+				if (!parentSchema.allowsLongList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectLongArray(len));
 			case NbtType.tagFloat:
-				return NbtList.create(di.expectFloatArray(size));
+				if (!parentSchema.allowsFloatList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectFloatArray(len));
 			case NbtType.tagDouble:
-				return NbtList.create(di.expectDoubleArray(size));
+				if (!parentSchema.allowsDoubleList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(di.expectDoubleArray(len));
 			case NbtType.tagByteArray:
-				return NbtList.create(readGenericArray(size, byte[][]::new, this::readByteArray));
+				if (!parentSchema.allowsByteArrayList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(readGenericArray(len, byte[][]::new, this::readByteArray));
 			case NbtType.tagIntArray:
-				return NbtList.create(readGenericArray(size, int[][]::new, this::readIntArray));
+				if (!parentSchema.allowsIntArrayList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(readGenericArray(len, int[][]::new, this::readIntArray));
 			case NbtType.tagLongArray:
-				return NbtList.create(readGenericArray(size, long[][]::new, this::readLongArray));
+				if (!parentSchema.allowsLongArrayList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(readGenericArray(len, long[][]::new, this::readLongArray));
 			case NbtType.tagString:
-				return NbtList.create(readGenericArray(size, String[]::new, this::readString));
+				if (!parentSchema.allowsStringList(key, len)) throw new NbtParseException.IncorrectSchema();
+				return NbtList.create(readGenericArray(len, String[]::new, this::readString));
 			case NbtType.tagList:
-				nestedTarget.push(OomAware.tryRun(oomAware, () -> new ListOfLists(key, size)));
+				NbtListOfListsSchema schema = nonNullSchema(parentSchema.schemaForListOfLists(key, len));
+				nestedTarget.push(OomAware.tryRun(oomAware, () -> new ListOfListsTarget(key, len, schema)));
 				return null;
 			case NbtType.tagCompound:
-				NbtCompound[] maps = readGenericArray(size, NbtCompound[]::new, () ->
-					// Wrap in OomAware.tryRun because there may be a lot of instances
-					OomAware.tryRun(oomAware, NbtCompound::new));
-				// False positive warning by IntelliJ, since it the compiler
-				// will complain if it is not cast to an Object[]
-				@SuppressWarnings("UnnecessaryLocalVariable")
-				Object[] mapsAsObjects = maps;
-				nestedTarget.pushAll(mapsAsObjects);
-				return NbtList.create(maps);
+				return readListOfCompoundsValue(nonNullSchema(parentSchema.schemaForListOfCompounds(key, len)), len);
 			default:
 				throw new NbtParseException.UnknownTagType(type);
 		}
 	}
 
 	@NotNull
-	private String readString() throws ReadException, EofException, OomException, NbtParseException.InvalidString {
+	private String readString() throws ReadException, EofException, OomException,
+									   NbtParseException.InvalidString {
 		try {
 			return di.expectModifiedUtf8();
 		} catch (CheckedBigEndianDataInput.ModifiedUtf8DataFormatException ex) {
@@ -312,22 +464,32 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		}
 	}
 
-	private int readArraySize() throws ReadException, EofException, NbtParseException.InvalidDataStructureSize {
-		int size = di.expectInt();
-		if (size < 0 | size > GrowableArray.MAX_ARRAY_SIZE) throw new NbtParseException.InvalidDataStructureSize(size);
-		return size;
+	@NotNull
+	private String readString(short len) throws ReadException, EofException, OomException,
+												NbtParseException.InvalidString {
+		try {
+			return di.expectModifiedUtf8(len);
+		} catch (CheckedBigEndianDataInput.ModifiedUtf8DataFormatException ex) {
+			throw new NbtParseException.InvalidString(ex);
+		}
+	}
+
+	private int readArrayLen() throws ReadException, EofException, NbtParseException.InvalidDataStructureSize {
+		int len = di.expectInt();
+		if (len < 0 | len > GrowableArray.MAX_ARRAY_SIZE) throw new NbtParseException.InvalidDataStructureSize(len);
+		return len;
 	}
 
 	private byte[] readByteArray() throws ReadException, EofException, OomException, NbtParseException {
-		return di.expectByteArray(readArraySize());
+		return di.expectByteArray(readArrayLen());
 	}
 
 	private int[] readIntArray() throws ReadException, EofException, OomException, NbtParseException {
-		return di.expectIntArray(readArraySize());
+		return di.expectIntArray(readArrayLen());
 	}
 
 	private long[] readLongArray() throws ReadException, EofException, OomException, NbtParseException {
-		return di.expectLongArray(readArraySize());
+		return di.expectLongArray(readArrayLen());
 	}
 
 
@@ -335,6 +497,11 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	private interface ReadGeneric<T, ReadException extends Throwable> {
 		@NotNull
 		T read() throws ReadException, EofException, OomException, NbtParseException;
+
+		@NotNull
+		default T read(int index) throws ReadException, EofException, OomException, NbtParseException {
+			return read();
+		}
 	}
 
 	private <T> T[] readGenericArray(int len, @NotNull IntFunction<T @NotNull []> genArray,
@@ -344,20 +511,36 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		T[] array = OomAware.tryRun(oomAware, () -> genArray.apply(len));
 		assert array.length == len;
 		for (int i = 0; i < len; ++i)
-			array[i] = read.read();
+			array[i] = read.read(i);
 		return array;
 	}
 
-	private static final class ListOfLists {
+	private interface ParsingTarget {
+	}
+
+	private static final class CompoundTarget implements ParsingTarget {
+		private final @NotNull NbtCompoundSchema schema;
+		private final @NotNull NbtCompound compound;
+
+		private CompoundTarget(@NotNull NbtCompound compound, @NotNull NbtCompoundSchema schema) {
+			this.schema = schema;
+			this.compound = compound;
+		}
+	}
+
+	private static final class ListOfListsTarget implements ParsingTarget {
+		private final @NotNull NbtListOfListsSchema schema;
+
 		private final @NotNull NbtList result;
 		private final @Nullable String key;
 
 		private final @NotNull NbtList @NotNull [] array;
 		private int nextIdx;
 
-		private ListOfLists(@Nullable String key, int size) {
+		private ListOfListsTarget(@Nullable String key, int len, @NotNull NbtListOfListsSchema schema) {
+			this.schema = schema;
 			this.key = key;
-			this.array = new NbtList[size];
+			this.array = new NbtList[len];
 			this.result = NbtList.create(array);
 		}
 	}

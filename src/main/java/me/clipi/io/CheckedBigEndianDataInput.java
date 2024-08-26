@@ -212,7 +212,28 @@ public class CheckedBigEndianDataInput<ReadException extends Exception> implemen
 	@NotNull
 	public String expectModifiedUtf8() throws ReadException, EofException, OomException,
 											  ModifiedUtf8DataFormatException {
-		int bytes = expectShort();
+		return expectModifiedUtf8(expectShort());
+	}
+
+	/**
+	 * Reads a {@link String} in the
+	 * <a href="https://docs.oracle.com/javase/8/docs/api/java/io/DataInput.html#modified-utf-8">modified UTF-8</a>
+	 * format
+	 *
+	 * <p>It is unlikely for this method to throw a checked {@link OomException}, since the maximum amount of
+	 * memory it can allocate is {@code 0.32 MiB}
+	 *
+	 * @see java.io.DataInput#readUTF()
+	 */
+	@NotNull
+	public String expectModifiedUtf8(short bytes) throws ReadException, EofException, OomException,
+														 ModifiedUtf8DataFormatException {
+		return expectModifiedUtf8(bytes & 0xFF_FF);
+	}
+
+	@NotNull
+	private String expectModifiedUtf8(int bytes) throws ReadException, EofException, OomException,
+														ModifiedUtf8DataFormatException {
 		byte[] encoded = expectByteArray(bytes);
 		char[] decoded = OomAware.tryRun(oomAware, () -> new char[bytes]);
 		int chars = 0;
