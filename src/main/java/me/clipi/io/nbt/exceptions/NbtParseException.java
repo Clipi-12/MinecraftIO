@@ -43,13 +43,13 @@ public abstract class NbtParseException extends Exception {
 		}
 	}
 
-	public static class InvalidArraySize extends NbtParseException {
-		private static final long serialVersionUID = 1744567714372945502L;
+	public static class NegativeArraySize extends NbtParseException {
+		private static final long serialVersionUID = -1879877328482606036L;
 
 		public final int attemptedSize;
 
-		public InvalidArraySize(int attemptedSize) {
-			super("Invalid array size: " + attemptedSize);
+		public NegativeArraySize(int attemptedSize) {
+			super("Negative array size: " + attemptedSize);
 			this.attemptedSize = attemptedSize;
 		}
 	}

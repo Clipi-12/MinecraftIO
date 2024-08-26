@@ -2,6 +2,9 @@ package me.clipi.io.util;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.lang.invoke.MethodType;
+import java.lang.reflect.Modifier;
+
 public interface NestedToString {
 	@NotNull
 	default String nestedToString() {
@@ -13,6 +16,7 @@ public interface NestedToString {
 	void toString(@NotNull Nester nester);
 
 	class Nester {
+		private boolean explicitType = true;
 		private int depth;
 		private final StringBuilder str = new StringBuilder();
 
@@ -34,25 +38,41 @@ public interface NestedToString {
 
 		private void append(Object obj) {
 			if (obj != null) {
+				Class<?> objClass = obj.getClass();
 				if (obj instanceof String) {
 					str.append('"').append(obj).append('"');
 					return;
-				} else if (obj.getClass().isPrimitive()) {
-					str.append(obj);
-					return;
+				} else {
+					Class<?> prim = MethodType.methodType(objClass).unwrap().returnType();
+					if (!objClass.equals(prim)) {
+						if (explicitType) str.append(prim.getSimpleName()).append(' ');
+						str.append(obj);
+						return;
+					}
 				}
 
-				String name = obj.getClass().getSimpleName();
-				if (!name.isEmpty()) str.append(name).append(' ');
+				if (explicitType) {
+					String name = objClass.getSimpleName();
+					if (!name.isEmpty()) str.append(name).append(' ');
+				}
 				if (obj instanceof NestedToString) {
 					appendComposite('{', '}', () -> ((NestedToString) obj).toString(this));
 					return;
-				} else if (obj instanceof Iterable) {
-					appendComposite('[', ']', () -> ((Iterable<?>) obj).forEach(o -> {
+				} else if (obj instanceof Iterable | objClass.isArray()) {
+					Iterable<?> iter;
+					if (objClass.isArray()) {
+						if (Modifier.isFinal(objClass.getComponentType().getModifiers()))
+							explicitType = false;
+						iter = BoxedArrayIterable.infer(obj);
+					} else {
+						iter = (Iterable<?>) obj;
+					}
+					appendComposite('[', ']', () -> iter.forEach(o -> {
 						nlTabs();
 						append(o);
 						str.append(',');
 					}));
+					explicitType = true;
 					return;
 				}
 			}
@@ -87,6 +107,11 @@ public interface NestedToString {
 		@NotNull
 		private String finish() {
 			assert depth == 0;
+			return str.toString();
+		}
+
+		@Override
+		public String toString() {
 			return str.toString();
 		}
 	}

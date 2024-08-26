@@ -29,6 +29,14 @@ public final class FixedStack<T> {
 		return nextIdx;
 	}
 
+	public void clear() {
+		@SuppressWarnings("UnnecessaryLocalVariable")
+		T[] arr = backingArray;
+		for (int i = nextIdx - 1; i >= 0; --i)
+			arr[i] = null;
+		nextIdx = 0;
+	}
+
 	public void push(@NotNull T element) throws FullStackException {
 		if (!tryPush(element)) throw new FullStackException();
 	}
@@ -77,7 +85,7 @@ public final class FixedStack<T> {
 	public final boolean tryPushAll(@NotNull T @NotNull ... elements) {
 		int nextIdx = this.nextIdx + elements.length;
 		if (nextIdx <= maxSize) {
-			this.nextIdx = nextIdx;
+			this.nextIdx = nextIdx--;
 			@SuppressWarnings("UnnecessaryLocalVariable")
 			T[] arr = backingArray;
 			// System.arraycopy with null check
@@ -92,7 +100,7 @@ public final class FixedStack<T> {
 	@Nullable
 	public T tryPeek() {
 		int nextIdx = this.nextIdx;
-		if (nextIdx >= 0) {
+		if (nextIdx > 0) {
 			return backingArray[--nextIdx];
 		} else {
 			return null;
@@ -102,8 +110,10 @@ public final class FixedStack<T> {
 	@Nullable
 	public T tryPop() {
 		int nextIdx = this.nextIdx;
-		if (nextIdx >= 0) {
-			T res = backingArray[--nextIdx];
+		if (nextIdx > 0) {
+			T[] arr = backingArray;
+			T res = arr[--nextIdx];
+			arr[nextIdx] = null;
 			this.nextIdx = nextIdx;
 			return res;
 		} else {

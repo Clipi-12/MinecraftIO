@@ -152,6 +152,7 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 		assert this.keys.getSize() == len;
 
 		int count = 0;
+		boolean isObj = nbtType >= NbtType.tagByteArray;
 
 		for (int i = 0; i < len; ++i) {
 			if (key.equals(keys[i])) {
@@ -159,7 +160,7 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 					throw new NbtParseException.UnexpectedTagType(NbtType.values()[nbtType], types[i]);
 				return count;
 			}
-			if (types[i] == nbtType) ++count;
+			if (types[i] == nbtType | (isObj && types[i] >= NbtType.tagByteArray)) ++count;
 		}
 		throw new NbtKeyNotFoundException(key, this);
 	}
@@ -245,13 +246,12 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 		int len = this.types.getSize();
 		assert this.keys.getSize() == len;
 
-		Object[] arrays = { null, bytes, shorts, ints, longs, floats, doubles,
-							objects, objects, objects, objects, objects, objects };
-		int[] count = new int[13];
+		GrowableArray<?>[] arrays = { null, bytes, shorts, ints, longs, floats, doubles, objects };
+		int[] count = new int[8];
 
 		for (int i = 0; i < len; ++i) {
-			byte type = types[i];
-			nester.append(keys[i], Array.get(arrays[type], count[type]++));
+			int type = Math.min(types[i], NbtType.tagByteArray);
+			nester.append(keys[i], Array.get(arrays[type].inner, count[type]++));
 		}
 	}
 }

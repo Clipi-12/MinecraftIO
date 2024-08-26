@@ -1,6 +1,10 @@
 package me.clipi.io.nbt;
 
+import me.clipi.io.util.NestedToString;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.lang.reflect.Array;
 
 /**
  * Represents a NBT List
@@ -8,9 +12,21 @@ import org.jetbrains.annotations.NotNull;
  * <p>Empty lists will always be represented by the componentType being the End tag and the backing array being null.
  * The backing array will never be null if the list is not empty.
  */
-public class NbtList {
+public class NbtList implements NestedToString {
 	public final @NotNull NbtType componentType;
-	public final Object array;
+	public final @Nullable Object array;
+
+	@Override
+	public String toString() {
+		return nestedToString();
+	}
+
+	@Override
+	public void toString(@NotNull Nester nester) {
+		nester.append("component type", componentType)
+			  .append("size", array == null ? 0 : Array.getLength(array))
+			  .append("array", array);
+	}
 
 	public static final NbtList EMPTY_LIST = new NbtList();
 
@@ -20,75 +36,56 @@ public class NbtList {
 		this.array = null;
 	}
 
-	public NbtList(byte @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.Byte;
+	private NbtList(@NotNull NbtType componentType, @NotNull Object array) {
+		this.componentType = componentType;
 		this.array = array;
 	}
 
-	public NbtList(short @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.Short;
-		this.array = array;
+	public static NbtList create(byte @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Byte, array);
 	}
 
-	public NbtList(int @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.Int;
-		this.array = array;
+	public static NbtList create(short @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Short, array);
 	}
 
-	public NbtList(long @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.Long;
-		this.array = array;
+	public static NbtList create(int @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Int, array);
 	}
 
-	public NbtList(float @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.Float;
-		this.array = array;
+	public static NbtList create(long @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Long, array);
 	}
 
-	public NbtList(double @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.Double;
-		this.array = array;
+	public static NbtList create(float @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Float, array);
 	}
 
-	public NbtList(byte @NotNull [] @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.ByteArray;
-		this.array = array;
+	public static NbtList create(double @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Double, array);
 	}
 
-	public NbtList(int @NotNull [] @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.IntArray;
-		this.array = array;
+	public static NbtList create(byte @NotNull [] @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.ByteArray, array);
 	}
 
-	public NbtList(long @NotNull [] @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.LongArray;
-		this.array = array;
+	public static NbtList create(int @NotNull [] @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.IntArray, array);
 	}
 
-	public NbtList(@NotNull String @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.String;
-		this.array = array;
+	public static NbtList create(long @NotNull [] @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.LongArray, array);
 	}
 
-	public NbtList(@NotNull NbtList @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.List;
-		this.array = array;
+	public static NbtList create(@NotNull String @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.String, array);
 	}
 
-	public NbtList(@NotNull NbtCompound @NotNull [] array) {
-		if (array.length == 0) throw new AssertionError();
-		this.componentType = NbtType.Compound;
-		this.array = array;
+	public static NbtList create(@NotNull NbtList @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.List, array);
+	}
+
+	public static NbtList create(@NotNull NbtCompound @NotNull [] array) {
+		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Compound, array);
 	}
 }

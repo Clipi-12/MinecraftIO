@@ -5,13 +5,11 @@ import me.clipi.io.util.function.CheckedByteConsumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.function.IntFunction;
 
-public class CheckedBigEndianDataInput<ReadException extends Throwable> {
+public class CheckedBigEndianDataInput<ReadException extends Exception> implements AutoCloseable {
 	/**
 	 * Similar to {@link java.io.UTFDataFormatException}, but it does not extend {@link java.io.IOException}
 	 * so that it has to be explicitly caught.
@@ -31,27 +29,13 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 		this.reader = reader;
 	}
 
-	@NotNull
-	public static CheckedBigEndianDataInput<IOException> fromIs(@NotNull InputStream is) {
-		return new CheckedBigEndianDataInput<>(new CheckedReader<IOException>() {
-			@Override
-			public int nextByteOrNeg() throws IOException {
-				return is.read();
-			}
+	@Override
+	public void close() throws ReadException {
+		reader.closeAll();
+	}
 
-			@Override
-			public boolean readFullyOrTrue(byte @NotNull [] buf, int length) throws IOException {
-				assert length >= 0 && length <= buf.length;
-				int n = 0;
-				while (length > 0) {
-					int count = is.read(buf, n, length);
-					if (count < 0) return true;
-					n += count;
-					length -= count;
-				}
-				return false;
-			}
-		});
+	public void closeCurrent() throws ReadException {
+		reader.closeCurrent();
 	}
 
 	public <E extends Throwable> void expectedByteFail(byte b, @NotNull CheckedByteConsumer<E> actualByte)
@@ -91,10 +75,10 @@ public class CheckedBigEndianDataInput<ReadException extends Throwable> {
 	public long expectLong() throws ReadException, EofException {
 		byte[] longBuffer = this.bufLong;
 		if (reader.readFullyOrTrue(longBuffer)) throw new EofException();
-		return ((long) longBuffer[0] << 56) | ((long) longBuffer[1] << 48) |
-			   ((long) longBuffer[2] << 40) | ((long) longBuffer[3] << 32) |
-			   ((long) longBuffer[4] << 24) | (longBuffer[5] << 16) |
-			   (longBuffer[6] << 8) | longBuffer[7];
+		return ((longBuffer[0] & 0xFFL) << 56) | ((longBuffer[1] & 0xFFL) << 48) |
+			   ((longBuffer[2] & 0xFFL) << 40) | ((longBuffer[3] & 0xFFL) << 32) |
+			   ((longBuffer[4] & 0xFFL) << 24) | ((longBuffer[5] & 0xFFL) << 16) |
+			   ((longBuffer[6] & 0xFFL) << 8) | (longBuffer[7] & 0xFFL);
 	}
 
 	public float expectFloat() throws ReadException, EofException {

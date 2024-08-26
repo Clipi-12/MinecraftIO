@@ -1,0 +1,80 @@
+NbtCompound {
+	root: NbtCompound {
+		byte: byte 1,
+		short: short 127,
+		int: int 127,
+		long: long 127,
+		float: float 127.0,
+		double: double 127.0,
+		string: "this is a string",
+		byteArray: byte[] [
+			1
+		],
+		intArray: int[] [
+			127
+		],
+		longArray: long[] [
+			127
+		],
+		byteList: NbtList {
+			component type: NbtType Byte,
+			size: int 1,
+			array: byte[] [
+				1
+			]
+		},
+		shortList: NbtList {
+			component type: NbtType Short,
+			size: int 1,
+			array: short[] [
+				127
+			]
+		},
+		intList: NbtList {
+			component type: NbtType Int,
+			size: int 1,
+			array: int[] [
+				127
+			]
+		},
+		longList: NbtList {
+			component type: NbtType Long,
+			size: int 1,
+			array: long[] [
+				127
+			]
+		},
+		floatList: NbtList {
+			component type: NbtType Float,
+			size: int 1,
+			array: float[] [
+				127.0
+			]
+		},
+		doubleList: NbtList {
+			component type: NbtType Double,
+			size: int 1,
+			array: double[] [
+				127.0
+			]
+		},
+		compound1: NbtCompound {
+			compound2: NbtCompound {
+				compound3: NbtCompound {
+					list: NbtList {
+						component type: NbtType Compound,
+						size: int 2,
+						array: NbtCompound[] [
+							NbtCompound {
+								key: "value"
+							},
+							NbtCompound {
+								key: "value"
+							}
+						]
+					}
+				}
+			}
+		}
+	}
+}

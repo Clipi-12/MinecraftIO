@@ -72,23 +72,15 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> implement
 	private int ensureCapacityFor(int amount) throws OomException {
 		ArrayType arr = this.inner;
 		int len = Array.getLength(arr), res = this.nextIdx, nextIdx;
-		if ((nextIdx = this.nextIdx += amount) > len) {
+		if ((nextIdx = this.nextIdx + amount) > len) {
 			if (nextIdx <= 0 | nextIdx > MAX_ARRAY_SIZE) throw OomException.INSTANCE;
-			len = Math.min(Integer.highestOneBit(nextIdx) << 1, MAX_ARRAY_SIZE);
-			ArrayType newArr = null;
-			{
-				if (len > 0) {
-					int finalLen = len;
-					newArr = OomAware.tryRunOrNull(oomAware, () -> gen.apply(finalLen));
-				}
-				if (newArr == null) {
-					len = nextIdx;
-					newArr = OomAware.tryRun(oomAware, () -> gen.apply(nextIdx));
-				}
-			}
-			this.inner = newArr;
+			int newLen = Math.max(nextIdx, (int) Math.min(Long.highestOneBit(nextIdx) << 1, MAX_ARRAY_SIZE));
+			ArrayType newArr = OomAware.tryRunOrNull(oomAware, () -> gen.apply(newLen));
+			if (newArr == null) newArr = OomAware.tryRun(oomAware, () -> gen.apply(nextIdx));
 			System.arraycopy(arr, 0, newArr, 0, len);
+			this.inner = newArr;
 		}
+		this.nextIdx = nextIdx;
 		return res;
 	}
 
@@ -125,32 +117,39 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> implement
 
 
 	public static <T> void add(@NotNull GrowableArray<T[]> self, T item) throws OomException {
-		self.inner[self.ensureCapacityFor(1)] = item;
+		int idx = self.ensureCapacityFor(1);
+		self.inner[idx] = item;
 	}
 
 	// <editor-fold defaultstate="collapsed" desc="add methods">
 	public static void add(@NotNull GrowableArray<byte[]> self, byte item) throws OomException {
-		self.inner[self.ensureCapacityFor(1)] = item;
+		int idx = self.ensureCapacityFor(1);
+		self.inner[idx] = item;
 	}
 
 	public static void add(@NotNull GrowableArray<short[]> self, short item) throws OomException {
-		self.inner[self.ensureCapacityFor(1)] = item;
+		int idx = self.ensureCapacityFor(1);
+		self.inner[idx] = item;
 	}
 
 	public static void add(@NotNull GrowableArray<int[]> self, int item) throws OomException {
-		self.inner[self.ensureCapacityFor(1)] = item;
+		int idx = self.ensureCapacityFor(1);
+		self.inner[idx] = item;
 	}
 
 	public static void add(@NotNull GrowableArray<long[]> self, long item) throws OomException {
-		self.inner[self.ensureCapacityFor(1)] = item;
+		int idx = self.ensureCapacityFor(1);
+		self.inner[idx] = item;
 	}
 
 	public static void add(@NotNull GrowableArray<float[]> self, float item) throws OomException {
-		self.inner[self.ensureCapacityFor(1)] = item;
+		int idx = self.ensureCapacityFor(1);
+		self.inner[idx] = item;
 	}
 
 	public static void add(@NotNull GrowableArray<double[]> self, double item) throws OomException {
-		self.inner[self.ensureCapacityFor(1)] = item;
+		int idx = self.ensureCapacityFor(1);
+		self.inner[idx] = item;
 	}
 	// </editor-fold>
 

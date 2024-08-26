@@ -16,7 +16,7 @@ import java.util.function.IntFunction;
 /**
  * @see <a href="https://minecraft.wiki/w/NBT_format">NBT format</a>
  */
-public class NbtParser<ReadException extends Throwable> {
+public class NbtParser<ReadException extends Exception> implements AutoCloseable {
 	private final CheckedBigEndianDataInput<ReadException> di;
 	/**
 	 * FixedStack of objects that are either NbtCompound or ListOfLists.
@@ -32,10 +32,18 @@ public class NbtParser<ReadException extends Throwable> {
 		this.di = di;
 	}
 
+	@Override
+	public void close() throws ReadException {
+		di.close();
+	}
+
+	public void closeCurrent() throws ReadException {
+		di.closeCurrent();
+	}
+
 	@NotNull
-	private NbtCompound parseRoot() throws ReadException, EofException, NotEofException, OomException,
-										   NbtParseException, FixedStack.FullStackException,
-										   FixedStack.EmptyStackException {
+	public NbtCompound parseRoot() throws ReadException, EofException, NotEofException, OomException,
+										  NbtParseException, FixedStack.FullStackException {
 		di.expectedByteFail(NbtType.tagCompound, type -> {
 			throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
 		});
@@ -45,8 +53,10 @@ public class NbtParser<ReadException extends Throwable> {
 			root = readRootValue();
 		} finally {
 			di.setOomAware(oomAware = null);
+			nestedTarget.clear();
 		}
 		di.expectEnd();
+		closeCurrent();
 		NbtCompound res = new NbtCompound();
 		res.addMap(key, root);
 		return res;
@@ -54,26 +64,26 @@ public class NbtParser<ReadException extends Throwable> {
 
 	@NotNull
 	private NbtCompound readRootValue() throws ReadException, EofException, OomException,
-											   NbtParseException, FixedStack.FullStackException,
-											   FixedStack.EmptyStackException {
+											   NbtParseException, FixedStack.FullStackException {
 		FixedStack<Object> nestedTarget = this.nestedTarget;
 		NbtCompound root = new NbtCompound();
 		di.setOomAware(oomAware = root);
 		nestedTarget.push(root);
 		NbtCompound target = root;
 		for (; ; ) {
-			if (readMapEntry(target)) return root;
-			readListEntries((ListOfLists) nestedTarget.pop());
-			target = (NbtCompound) nestedTarget.pop();
+			ListOfLists nextTarget = readMapEntry(target);
+			if (nextTarget == null) return root;
+			target = readListEntries(nextTarget);
 		}
 	}
 
 	/**
 	 * @return whether the root has been reached or a ListOfLists target is on top of the stack
 	 */
-	private boolean readMapEntry(@NotNull NbtCompound target) throws ReadException, EofException, OomException,
-																	 NbtParseException, FixedStack.FullStackException,
-																	 FixedStack.EmptyStackException {
+	@Nullable
+	private ListOfLists readMapEntry(@NotNull NbtCompound target) throws ReadException, EofException, OomException,
+																		 NbtParseException,
+																		 FixedStack.FullStackException {
 		FixedStack<Object> nestedTarget = this.nestedTarget;
 		newTarget:
 		for (; ; ) {
@@ -81,11 +91,15 @@ public class NbtParser<ReadException extends Throwable> {
 			for (; ; ) {
 				int type = di.expectByte();
 				if (type == NbtType.tagEnd) {
-					nestedTarget.pop(); // pop self
+					try {
+						nestedTarget.pop(); // pop self
+					} catch (FixedStack.EmptyStackException ex) {
+						throw new IllegalStateException(ex);
+					}
 
 					Object parent = nestedTarget.tryPeek();
-					if (parent == null) return true;
-					if (parent instanceof ListOfLists) return false;
+					if (parent == null) return null;
+					if (parent instanceof ListOfLists) return (ListOfLists) parent;
 					target = (NbtCompound) parent;
 					continue newTarget;
 				}
@@ -123,10 +137,20 @@ public class NbtParser<ReadException extends Throwable> {
 						break;
 					case NbtType.tagList:
 						NbtList list = readListValue(key);
-						if (list == null) return false;
+						if (list == null) {
+							try {
+								return (ListOfLists) nestedTarget.peek();
+							} catch (FixedStack.EmptyStackException ex) {
+								throw new IllegalStateException(ex);
+							}
+						}
 						target.addList(key, list);
 						if (stackSize != nestedTarget.getSize()) {
-							target = (NbtCompound) nestedTarget.peek();
+							try {
+								target = (NbtCompound) nestedTarget.peek();
+							} catch (FixedStack.EmptyStackException ex) {
+								throw new IllegalStateException(ex);
+							}
 							continue newTarget;
 						}
 						break;
@@ -143,9 +167,10 @@ public class NbtParser<ReadException extends Throwable> {
 		}
 	}
 
-	private void readListEntries(@NotNull ListOfLists target) throws ReadException, EofException, OomException,
-																	 NbtParseException, FixedStack.FullStackException,
-																	 FixedStack.EmptyStackException {
+	@NotNull
+	private NbtCompound readListEntries(@NotNull ListOfLists target) throws ReadException, EofException, OomException,
+																			NbtParseException,
+																			FixedStack.FullStackException {
 		FixedStack<Object> nestedTarget = this.nestedTarget;
 		newTarget:
 		for (; ; ) {
@@ -154,13 +179,20 @@ public class NbtParser<ReadException extends Throwable> {
 			int stackSize = nestedTarget.getSize();
 			for (; ; ) {
 				if (target.nextIdx >= len) {
-					nestedTarget.pop(); // pop self
+					Object parent;
 
-					Object parent = nestedTarget.peek();
+					try {
+						nestedTarget.pop(); // pop self
+						parent = nestedTarget.peek();
+					} catch (FixedStack.EmptyStackException ex) {
+						throw new IllegalStateException(ex);
+					}
 					if (parent instanceof NbtCompound) {
 						assert target.key != null;
-						((NbtCompound) parent).addList(target.key, target.result);
-						return;
+
+						NbtCompound parentAsMap = (NbtCompound) parent;
+						parentAsMap.addList(target.key, target.result);
+						return parentAsMap;
 					}
 					assert target.key == null;
 
@@ -172,10 +204,20 @@ public class NbtParser<ReadException extends Throwable> {
 
 				NbtList list = readListValue(null);
 				if (list == null) {
-					target = (ListOfLists) nestedTarget.peek();
+					try {
+						target = (ListOfLists) nestedTarget.peek();
+					} catch (FixedStack.EmptyStackException ex) {
+						throw new IllegalStateException(ex);
+					}
 					continue newTarget;
 				}
-				if (stackSize != nestedTarget.getSize()) return;
+				if (stackSize != nestedTarget.getSize()) {
+					try {
+						return (NbtCompound) nestedTarget.peek();
+					} catch (FixedStack.EmptyStackException ex) {
+						throw new IllegalStateException(ex);
+					}
+				}
 				array[target.nextIdx++] = list;
 			}
 		}
@@ -192,36 +234,36 @@ public class NbtParser<ReadException extends Throwable> {
 	private NbtList readListValue(@Nullable String key) throws ReadException, EofException, OomException,
 															   NbtParseException, FixedStack.FullStackException {
 		int type = di.expectByte();
-		int size = di.expectInt();
+		int size = readArraySize();
 		if (size == 0) return NbtList.EMPTY_LIST;
 		switch (type) {
 			case NbtType.tagEnd:
 				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
 			case NbtType.tagByte:
-				return new NbtList(readByteArray());
+				return NbtList.create(di.expectByteArray(size));
 			case NbtType.tagShort:
-				return new NbtList(readShortArray());
+				return NbtList.create(di.expectShortArray(size));
 			case NbtType.tagInt:
-				return new NbtList(readIntArray());
+				return NbtList.create(di.expectIntArray(size));
 			case NbtType.tagLong:
-				return new NbtList(readLongArray());
+				return NbtList.create(di.expectLongArray(size));
 			case NbtType.tagFloat:
-				return new NbtList(readFloatArray());
+				return NbtList.create(di.expectFloatArray(size));
 			case NbtType.tagDouble:
-				return new NbtList(readDoubleArray());
+				return NbtList.create(di.expectDoubleArray(size));
 			case NbtType.tagByteArray:
-				return new NbtList(readGenericArray(byte[][]::new, this::readByteArray));
+				return NbtList.create(readGenericArray(size, byte[][]::new, this::readByteArray));
 			case NbtType.tagIntArray:
-				return new NbtList(readGenericArray(int[][]::new, this::readIntArray));
+				return NbtList.create(readGenericArray(size, int[][]::new, this::readIntArray));
 			case NbtType.tagLongArray:
-				return new NbtList(readGenericArray(long[][]::new, this::readLongArray));
+				return NbtList.create(readGenericArray(size, long[][]::new, this::readLongArray));
 			case NbtType.tagString:
-				return new NbtList(readGenericArray(String[]::new, this::readString));
+				return NbtList.create(readGenericArray(size, String[]::new, this::readString));
 			case NbtType.tagList:
 				nestedTarget.push(OomAware.tryRun(oomAware, () -> new ListOfLists(key, size)));
 				return null;
 			case NbtType.tagCompound:
-				NbtCompound[] maps = readGenericArray(NbtCompound[]::new, () ->
+				NbtCompound[] maps = readGenericArray(size, NbtCompound[]::new, () ->
 					// Wrap in OomAware.tryRun because there may be a lot of instances
 					OomAware.tryRun(oomAware, NbtCompound::new));
 				// False positive warning by IntelliJ, since it the compiler
@@ -229,7 +271,7 @@ public class NbtParser<ReadException extends Throwable> {
 				@SuppressWarnings("UnnecessaryLocalVariable")
 				Object[] mapsAsObjects = maps;
 				nestedTarget.pushAll(mapsAsObjects);
-				return new NbtList(maps);
+				return NbtList.create(maps);
 			default:
 				throw new NbtParseException.UnknownTagType(type);
 		}
@@ -244,18 +286,15 @@ public class NbtParser<ReadException extends Throwable> {
 		}
 	}
 
-	private int readArraySize() throws ReadException, EofException, NbtParseException.InvalidArraySize {
+	private int readArraySize() throws ReadException, EofException, NbtParseException.NegativeArraySize, OomException {
 		int size = di.expectInt();
-		if (size < 0 || size > GrowableArray.MAX_ARRAY_SIZE) throw new NbtParseException.InvalidArraySize(size);
+		if (size < 0) throw new NbtParseException.NegativeArraySize(size);
+		if (size > GrowableArray.MAX_ARRAY_SIZE) throw OomException.INSTANCE;
 		return size;
 	}
 
 	private byte[] readByteArray() throws ReadException, EofException, OomException, NbtParseException {
 		return di.expectByteArray(readArraySize());
-	}
-
-	private short[] readShortArray() throws ReadException, EofException, OomException, NbtParseException {
-		return di.expectShortArray(readArraySize());
 	}
 
 	private int[] readIntArray() throws ReadException, EofException, OomException, NbtParseException {
@@ -266,14 +305,6 @@ public class NbtParser<ReadException extends Throwable> {
 		return di.expectLongArray(readArraySize());
 	}
 
-	private float[] readFloatArray() throws ReadException, EofException, OomException, NbtParseException {
-		return di.expectFloatArray(readArraySize());
-	}
-
-	private double[] readDoubleArray() throws ReadException, EofException, OomException, NbtParseException {
-		return di.expectDoubleArray(readArraySize());
-	}
-
 
 	@FunctionalInterface
 	private interface ReadGeneric<T, ReadException extends Throwable> {
@@ -281,10 +312,10 @@ public class NbtParser<ReadException extends Throwable> {
 		T read() throws ReadException, EofException, OomException, NbtParseException;
 	}
 
-	private <T> T[] readGenericArray(@NotNull IntFunction<T @NotNull []> genArray,
+	private <T> T[] readGenericArray(int len, @NotNull IntFunction<T @NotNull []> genArray,
 									 @NotNull ReadGeneric<T, ReadException> read)
 		throws ReadException, EofException, OomException, NbtParseException {
-		int len = readArraySize();
+
 		T[] array = OomAware.tryRun(oomAware, () -> genArray.apply(len));
 		assert array.length == len;
 		for (int i = 0; i < len; ++i)
@@ -302,7 +333,7 @@ public class NbtParser<ReadException extends Throwable> {
 		private ListOfLists(@Nullable String key, int size) {
 			this.key = key;
 			this.array = new NbtList[size];
-			this.result = new NbtList(array);
+			this.result = NbtList.create(array);
 		}
 	}
 }
