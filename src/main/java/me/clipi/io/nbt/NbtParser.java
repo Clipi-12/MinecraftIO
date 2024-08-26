@@ -62,12 +62,12 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	}
 
 	@NotNull
-	public NbtCompound parseRoot() throws ReadException, EofException, NotEofException, OomException,
-										  NbtParseException, FixedStack.FullStackException {
+	public NbtRoot parseRoot() throws ReadException, EofException, NotEofException, OomException,
+									  NbtParseException, FixedStack.FullStackException {
 		di.expectedByteFail(NbtType.tagCompound, type -> {
 			throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
 		});
-		String key = readString();
+		String name = readString();
 		NbtCompound root;
 		try {
 			root = readRootValue();
@@ -77,9 +77,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		}
 		di.expectEnd();
 		closeCurrent();
-		NbtCompound res = new NbtCompound();
-		res.addMap(key, root);
-		return res;
+		return new NbtRoot(name, root);
 	}
 
 	@NotNull

@@ -79,7 +79,7 @@ public class NbtTest {
 									  EofException, NotEofException,
 									  FixedStack.FullStackException {
 		try (NbtParser<IOException> parser = getParser("nbt/all-types.nbt.gz")) {
-			Assertions.assertEquals(getString("nbt/output-all-types.txt"), parser.parseRoot().toString());
+			Assertions.assertEquals(getString("nbt/output-all-types.txt"), parser.parseRoot().nestedToString());
 		}
 	}
 
@@ -87,7 +87,7 @@ public class NbtTest {
 	public void testBigTest() throws IOException, OomException, NbtParseException,
 									 EofException, NotEofException, FixedStack.FullStackException {
 		try (NbtParser<IOException> parser = getParser("nbt/bigtest.nbt.gz")) {
-			Assertions.assertEquals(getString("nbt/output-bigtest.txt"), parser.parseRoot().toString());
+			Assertions.assertEquals(getString("nbt/output-bigtest.txt"), parser.parseRoot().nestedToString());
 		}
 	}
 
@@ -96,8 +96,8 @@ public class NbtTest {
 											NotEofException,
 											FixedStack.FullStackException {
 		try (NbtParser<IOException> parser = getParser("nbt/all-types.nbt.gz", "nbt/bigtest.nbt.gz")) {
-			Assertions.assertEquals(getString("nbt/output-all-types.txt"), parser.parseRoot().toString());
-			Assertions.assertEquals(getString("nbt/output-bigtest.txt"), parser.parseRoot().toString());
+			Assertions.assertEquals(getString("nbt/output-all-types.txt"), parser.parseRoot().nestedToString());
+			Assertions.assertEquals(getString("nbt/output-bigtest.txt"), parser.parseRoot().nestedToString());
 		}
 	}
 }

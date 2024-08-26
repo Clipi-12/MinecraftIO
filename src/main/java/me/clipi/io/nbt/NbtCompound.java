@@ -45,6 +45,12 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 	private @Nullable GrowableArray<double[]> doubles;
 	private @Nullable GrowableArray<@NotNull Object[]> objects;
 
+	/**
+	 * package-private
+	 */
+	NbtCompound() {
+	}
+
 	public void recursivelyShrinkToFit() {
 		keys.tryShrinkToFit();
 		types.tryShrinkToFit();
@@ -255,6 +261,7 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 
 
 	@Override
+	@NotNull
 	public String toString() {
 		return nestedToString();
 	}

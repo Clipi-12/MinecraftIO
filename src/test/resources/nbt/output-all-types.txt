@@ -1,5 +1,6 @@
-NbtCompound {
-	root: NbtCompound {
+NbtRoot {
+	name: "root",
+	root value: NbtCompound {
 		byte: byte 1,
 		short: short 127,
 		int: int 127,

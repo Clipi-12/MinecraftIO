@@ -33,12 +33,18 @@ public interface NestedToString {
 		return nester.finish();
 	}
 
+	@NotNull
+	String toString();
+
 	void toString(@NotNull Nester nester);
 
 	class Nester {
 		private boolean explicitType = true;
 		private int depth;
 		private final StringBuilder str = new StringBuilder();
+
+		private Nester() {
+		}
 
 		/**
 		 * @return this

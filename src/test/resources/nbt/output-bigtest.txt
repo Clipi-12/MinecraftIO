@@ -1,5 +1,6 @@
-NbtCompound {
-	Level: NbtCompound {
+NbtRoot {
+	name: "Level",
+	root value: NbtCompound {
 		longTest: long 9223372036854775807,
 		shortTest: short 32767,
 		stringTest: "HELLO WORLD THIS IS A TEST STRING ÅÄÖ!",

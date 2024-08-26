@@ -37,6 +37,7 @@ public class NbtList implements NestedToString {
 	public final @Nullable Object array;
 
 	@Override
+	@NotNull
 	public String toString() {
 		return nestedToString();
 	}
@@ -61,51 +62,53 @@ public class NbtList implements NestedToString {
 		this.array = array;
 	}
 
-	public static NbtList create(byte @NotNull [] array) {
+	// <editor-fold defaultstate="collapsed" desc="package-private create methods">
+	static NbtList create(byte @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Byte, array);
 	}
 
-	public static NbtList create(short @NotNull [] array) {
+	static NbtList create(short @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Short, array);
 	}
 
-	public static NbtList create(int @NotNull [] array) {
+	static NbtList create(int @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Int, array);
 	}
 
-	public static NbtList create(long @NotNull [] array) {
+	static NbtList create(long @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Long, array);
 	}
 
-	public static NbtList create(float @NotNull [] array) {
+	static NbtList create(float @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Float, array);
 	}
 
-	public static NbtList create(double @NotNull [] array) {
+	static NbtList create(double @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Double, array);
 	}
 
-	public static NbtList create(byte @NotNull [] @NotNull [] array) {
+	static NbtList create(byte @NotNull [] @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.ByteArray, array);
 	}
 
-	public static NbtList create(int @NotNull [] @NotNull [] array) {
+	static NbtList create(int @NotNull [] @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.IntArray, array);
 	}
 
-	public static NbtList create(long @NotNull [] @NotNull [] array) {
+	static NbtList create(long @NotNull [] @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.LongArray, array);
 	}
 
-	public static NbtList create(@NotNull String @NotNull [] array) {
+	static NbtList create(@NotNull String @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.String, array);
 	}
 
-	public static NbtList create(@NotNull NbtList @NotNull [] array) {
+	static NbtList create(@NotNull NbtList @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.List, array);
 	}
 
-	public static NbtList create(@NotNull NbtCompound @NotNull [] array) {
+	static NbtList create(@NotNull NbtCompound @NotNull [] array) {
 		return array.length == 0 ? EMPTY_LIST : new NbtList(NbtType.Compound, array);
 	}
+	// </editor-fold>
 }
