@@ -1,3 +1,23 @@
+/*
+ * MinecraftIO, a simple library with multiple Minecraft IO-tools
+ * Copyright (C) 2024  Clipi (GitHub: Clipi-12)
+ *
+ * This file is part of MinecraftIO.
+ *
+ * MinecraftIO is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MinecraftIO is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MinecraftIO.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package me.clipi.io.nbt;
 
 import me.clipi.io.*;
@@ -14,6 +34,11 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.zip.GZIPInputStream;
 
+/**
+ * NBT Test files
+ * <a href="https://github.com/EngineHub/lin-bus/tree/2ecff1b22e7eaca6b7410cc13f1c0d7ddd39e3c3/shared-test-resources">
+ * provided by EngineHub</a>
+ */
 public class NbtTest {
 	private static final ClassLoader cl = NbtTest.class.getClassLoader();
 
