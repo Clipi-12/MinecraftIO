@@ -90,77 +90,71 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 		recursivelyShrinkToFit();
 	}
 
-	private void addKey(@NotNull String key, byte nbtType) throws NbtParseException.DuplicatedKey, OomException {
-		@NotNull String[] keys = this.keys.inner;
-		for (int len = entries() - 1; len >= 0; --len) {
-			if (key.equals(keys[len])) throw new NbtParseException.DuplicatedKey(key, this);
-		}
+	// <editor-fold defaultstate="collapsed" desc="add methods">
+	private void addKey(@NotNull String key, byte nbtType) throws OomException {
 		GrowableArray.add(this.keys, key);
 		GrowableArray.add(types, nbtType);
 	}
 
-	// <editor-fold defaultstate="collapsed" desc="add methods">
-	void addByte(@NotNull String key, byte value) throws NbtParseException.DuplicatedKey, OomException {
+	void collisionUnsafeAddByte(@NotNull String key, byte value) throws OomException {
 		addKey(key, NbtType.tagByte);
 		GrowableArray.add(bytes == null ? bytes = GrowableArray.bytes(this) : bytes, value);
 	}
 
-	void addShort(@NotNull String key, short value) throws NbtParseException.DuplicatedKey, OomException {
+	void collisionUnsafeAddShort(@NotNull String key, short value) throws OomException {
 		addKey(key, NbtType.tagShort);
 		GrowableArray.add(shorts == null ? shorts = GrowableArray.shorts(this) : shorts, value);
 	}
 
-	void addInt(@NotNull String key, int value) throws NbtParseException.DuplicatedKey, OomException {
+	void collisionUnsafeAddInt(@NotNull String key, int value) throws OomException {
 		addKey(key, NbtType.tagInt);
 		GrowableArray.add(ints == null ? ints = GrowableArray.ints(this) : ints, value);
 	}
 
-	void addLong(@NotNull String key, long value) throws NbtParseException.DuplicatedKey, OomException {
+	void collisionUnsafeAddLong(@NotNull String key, long value) throws OomException {
 		addKey(key, NbtType.tagLong);
 		GrowableArray.add(longs == null ? longs = GrowableArray.longs(this) : longs, value);
 	}
 
-	void addFloat(@NotNull String key, float value) throws NbtParseException.DuplicatedKey, OomException {
+	void collisionUnsafeAddFloat(@NotNull String key, float value) throws OomException {
 		addKey(key, NbtType.tagFloat);
 		GrowableArray.add(floats == null ? floats = GrowableArray.floats(this) : floats, value);
 	}
 
-	void addDouble(@NotNull String key, double value) throws NbtParseException.DuplicatedKey, OomException {
+	void collisionUnsafeAddDouble(@NotNull String key, double value) throws OomException {
 		addKey(key, NbtType.tagDouble);
 		GrowableArray.add(doubles == null ? doubles = GrowableArray.doubles(this) : doubles, value);
 	}
 
-	private void addObject(@NotNull String key, @NotNull Object value, byte nbtType) throws NbtParseException.DuplicatedKey, OomException {
+	private void collisionUnsafeAddObject(@NotNull String key, @NotNull Object value, byte nbtType) throws OomException {
 		addKey(key, nbtType);
 		GrowableArray.add(objects == null ? objects = GrowableArray.generic(Object.class, this) : objects, value);
 	}
 
-	void addByteArray(@NotNull String key, byte @NotNull [] value) throws NbtParseException.DuplicatedKey,
-																		  OomException {
-		addObject(key, value, NbtType.tagByteArray);
+	void collisionUnsafeAddByteArray(@NotNull String key, byte @NotNull [] value) throws OomException {
+		collisionUnsafeAddObject(key, value, NbtType.tagByteArray);
 	}
 
-	void addIntArray(@NotNull String key, int @NotNull [] value) throws NbtParseException.DuplicatedKey, OomException {
-		addObject(key, value, NbtType.tagIntArray);
+	void collisionUnsafeAddIntArray(@NotNull String key, int @NotNull [] value) throws OomException {
+		collisionUnsafeAddObject(key, value, NbtType.tagIntArray);
 	}
 
-	void addLongArray(@NotNull String key, long @NotNull [] value) throws NbtParseException.DuplicatedKey,
-																		  OomException {
-		addObject(key, value, NbtType.tagLongArray);
+	void collisionUnsafeAddLongArray(@NotNull String key, long @NotNull [] value) throws OomException {
+		collisionUnsafeAddObject(key, value, NbtType.tagLongArray);
 	}
 
-	void addString(@NotNull String key, @NotNull String value) throws NbtParseException.DuplicatedKey, OomException {
-		addObject(key, value, NbtType.tagString);
+	void collisionUnsafeAddString(@NotNull String key, @NotNull String value) throws OomException {
+		collisionUnsafeAddObject(key, value, NbtType.tagString);
 	}
 
-	void addList(@NotNull String key, @NotNull NbtList value) throws NbtParseException.DuplicatedKey, OomException {
-		addObject(key, value, NbtType.tagList);
+	void collisionUnsafeAddList(@NotNull String key, @NotNull NbtList value) throws OomException {
+		collisionUnsafeAddObject(key, value, NbtType.tagList);
 	}
 
-	void addMap(@NotNull String key, @NotNull NbtCompound value) throws NbtParseException.DuplicatedKey, OomException {
+	void collisionUnsafeAddCompound(@NotNull String key, @NotNull NbtCompound value) throws OomException {
 		// We don't do an exhaustive check for cyclic dependencies since this method is only accessed by the parser
 		assert value != this;
-		addObject(key, value, NbtType.tagCompound);
+		collisionUnsafeAddObject(key, value, NbtType.tagCompound);
 	}
 	// </editor-fold>
 
@@ -169,14 +163,13 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 	public NbtType typeForKey(@NotNull String key) {
 		String[] keys = this.keys.inner;
 		for (int i = entries() - 1; i >= 0; --i) {
-			if (key.equals(keys[i])) {
+			if (key.equals(keys[i]))
 				return NbtType.values()[types.inner[i]];
-			}
 		}
 		return null;
 	}
 
-	private int indexForKeyWithTypeOrNeg(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType {
+	int indexForKeyWithTypeOrNeg(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType {
 		assert nbtType > 0 & nbtType < 13;
 
 		String[] keys = this.keys.inner;

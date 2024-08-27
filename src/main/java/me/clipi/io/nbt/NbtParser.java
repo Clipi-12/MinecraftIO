@@ -153,54 +153,76 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				String key = readString();
 				switch (type) {
 					case NbtType.tagByte:
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagByte) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsByte(key)) throw new NbtParseException.IncorrectSchema();
-						target.addByte(key, (byte) di.expectByte());
+						target.collisionUnsafeAddByte(key, (byte) di.expectByte());
 						break;
 					case NbtType.tagShort:
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagShort) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsShort(key)) throw new NbtParseException.IncorrectSchema();
-						target.addShort(key, (short) di.expectShort());
+						target.collisionUnsafeAddShort(key, (short) di.expectShort());
 						break;
 					case NbtType.tagInt:
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagInt) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsInt(key)) throw new NbtParseException.IncorrectSchema();
-						target.addInt(key, di.expectInt());
+						target.collisionUnsafeAddInt(key, di.expectInt());
 						break;
 					case NbtType.tagLong:
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagLong) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsLong(key)) throw new NbtParseException.IncorrectSchema();
-						target.addLong(key, di.expectLong());
+						target.collisionUnsafeAddLong(key, di.expectLong());
 						break;
 					case NbtType.tagFloat:
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagFloat) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsFloat(key)) throw new NbtParseException.IncorrectSchema();
-						target.addFloat(key, di.expectFloat());
+						target.collisionUnsafeAddFloat(key, di.expectFloat());
 						break;
 					case NbtType.tagDouble:
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagDouble) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsDouble(key)) throw new NbtParseException.IncorrectSchema();
-						target.addDouble(key, di.expectDouble());
+						target.collisionUnsafeAddDouble(key, di.expectDouble());
 						break;
 					case NbtType.tagByteArray: {
 						int arrayLen = readArrayLen();
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagByteArray) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsByteArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
-						target.addByteArray(key, di.expectByteArray(arrayLen));
+						target.collisionUnsafeAddByteArray(key, di.expectByteArray(arrayLen));
 						break;
 					}
 					case NbtType.tagIntArray: {
 						int arrayLen = readArrayLen();
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagIntArray) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsIntArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
-						target.addIntArray(key, di.expectIntArray(arrayLen));
+						target.collisionUnsafeAddIntArray(key, di.expectIntArray(arrayLen));
 						break;
 					}
 					case NbtType.tagLongArray: {
 						int arrayLen = readArrayLen();
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagLongArray) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsLongArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
-						target.addLongArray(key, di.expectLongArray(arrayLen));
+						target.collisionUnsafeAddLongArray(key, di.expectLongArray(arrayLen));
 						break;
 					}
 					case NbtType.tagString: {
 						int stringLen = di.expectShort();
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagString) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						if (!schema.allowsString(key, stringLen)) throw new NbtParseException.IncorrectSchema();
-						target.addString(key, readString((short) stringLen));
+						target.collisionUnsafeAddString(key, readString((short) stringLen));
 						break;
 					}
 					case NbtType.tagList: {
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagList) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						NbtList list = readListValue(key, schema);
 						if (list == null) {
 							try {
@@ -209,7 +231,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 								throw new IllegalStateException(ex);
 							}
 						}
-						target.addList(key, list);
+						target.collisionUnsafeAddList(key, list);
 						if (stackSize != nestedTarget.getSize()) {
 							try {
 								CompoundTarget newTarget = (CompoundTarget) nestedTarget.peek();
@@ -223,10 +245,12 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 						break;
 					}
 					case NbtType.tagCompound: {
+						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagCompound) >= 0)
+							throw new NbtParseException.DuplicatedKey(key, target);
 						NbtCompound newDepth = new NbtCompound();
 						NbtCompoundSchema newSchema = nonNullSchema(schema.schemaForCompound(key));
 						nestedTarget.push(new CompoundTarget(newDepth, newSchema));
-						target.addMap(key, newDepth);
+						target.collisionUnsafeAddCompound(key, newDepth);
 						target = newDepth;
 						schema = newSchema;
 						continue newTarget;
@@ -262,7 +286,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 						assert target.key != null;
 
 						CompoundTarget parentAsMap = (CompoundTarget) parent;
-						parentAsMap.compound.addList(target.key, target.result);
+						parentAsMap.compound.collisionUnsafeAddList(target.key, target.result);
 						return parentAsMap;
 					}
 					assert target.key == null;
