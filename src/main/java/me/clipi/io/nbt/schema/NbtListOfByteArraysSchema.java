@@ -20,13 +20,14 @@
 
 package me.clipi.io.nbt.schema;
 
+import me.clipi.io.OomException;
 import me.clipi.io.util.GrowableArray;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Range;
 
 public interface NbtListOfByteArraysSchema {
 	@NotNull
-	NbtListOfByteArraysSchema ALWAYS = new AlwaysListOfByteArraysSchema();
+	NbtListOfByteArraysSchema ALWAYS = (index, length) -> false;
 
-	boolean deniesByteArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesByteArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 }

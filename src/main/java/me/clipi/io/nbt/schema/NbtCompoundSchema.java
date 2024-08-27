@@ -20,6 +20,7 @@
 
 package me.clipi.io.nbt.schema;
 
+import me.clipi.io.OomException;
 import me.clipi.io.nbt.NbtCompound;
 import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
 import me.clipi.io.nbt.exceptions.NbtParseException;
@@ -28,82 +29,102 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
-public interface NbtCompoundSchema extends NbtRootSchema {
-	boolean deniesFinishedCompound(@NotNull NbtCompound compound) throws NbtParseException, NbtKeyNotFoundException;
+public interface NbtCompoundSchema {
+	@NotNull
+	NbtCompoundSchema ALWAYS = new AlwaysCompoundSchema();
 
-	boolean deniesByte(@NotNull String key);
+	boolean deniesFinishedCompound(@NotNull NbtCompound compound)
+		throws OomException, NbtParseException, NbtKeyNotFoundException;
 
-	boolean deniesShort(@NotNull String key);
+	boolean deniesByte(@NotNull String key) throws OomException;
 
-	boolean deniesInt(@NotNull String key);
+	boolean deniesShort(@NotNull String key) throws OomException;
 
-	boolean deniesLong(@NotNull String key);
+	boolean deniesInt(@NotNull String key) throws OomException;
 
-	boolean deniesFloat(@NotNull String key);
+	boolean deniesLong(@NotNull String key) throws OomException;
 
-	boolean deniesDouble(@NotNull String key);
+	boolean deniesFloat(@NotNull String key) throws OomException;
 
-	boolean deniesByteArray(@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesDouble(@NotNull String key) throws OomException;
 
-	boolean deniesIntArray(@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesByteArray(
+		@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesLongArray(@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesIntArray(
+		@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesString(@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength);
+	boolean deniesLongArray(
+		@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesEmptyList(@NotNull String key);
+	boolean deniesString(
+		@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) throws OomException;
 
-	boolean deniesByteList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesEmptyList(@NotNull String key) throws OomException;
 
-	boolean deniesShortList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesByteList(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesIntList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesShortList(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesLongList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesIntList(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesFloatList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesLongList(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesDoubleList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesFloatList(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
+
+	boolean deniesDoubleList(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfByteArraysSchema schemaForListOfByteArrays(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfIntArraysSchema schemaForListOfIntArrays(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfLongArraysSchema schemaForListOfLongArrays(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfStringsSchema schemaForListOfStrings(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfListsSchema schemaForListOfLists(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfCompoundsSchema schemaForListOfCompounds(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
+
+	/**
+	 * @return The schema for the specified compound, or {@code null} if the compound is not allowed.
+	 */
+	@Nullable
+	NbtCompoundSchema schemaForCompound(@NotNull String key) throws OomException;
 }

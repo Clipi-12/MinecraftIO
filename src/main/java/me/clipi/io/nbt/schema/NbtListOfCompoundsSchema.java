@@ -20,16 +20,17 @@
 
 package me.clipi.io.nbt.schema;
 
+import me.clipi.io.OomException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public interface NbtListOfCompoundsSchema {
 	@NotNull
-	NbtListOfCompoundsSchema ALWAYS = new AlwaysListOfCompoundsSchema();
+	NbtListOfCompoundsSchema ALWAYS = index -> NbtCompoundSchema.ALWAYS;
 
 	/**
 	 * @return The schema for the specified compound, or {@code null} if the compound is not allowed.
 	 */
 	@Nullable
-	NbtCompoundSchema schemaForCompound(int index);
+	NbtCompoundSchema schemaForCompound(int index) throws OomException;
 }

@@ -75,13 +75,19 @@ public class VarIntLongTest {
 
 	private static int[] getVarInts(byte[] bytes, int size) {
 		int[] res = new int[size];
-		Assertions.assertDoesNotThrow(() -> VarIntLong.parseVarInts(bytes, (val, i) -> res[i] = val));
+		Assertions.assertDoesNotThrow(() -> VarIntLong.parseVarInts(bytes, (val, i) -> {
+			res[i] = val;
+			return true;
+		}));
 		return res;
 	}
 
 	private static long[] getVarLongs(byte[] bytes, int size) {
 		long[] res = new long[size];
-		Assertions.assertDoesNotThrow(() -> VarIntLong.parseVarLongs(bytes, (val, i) -> res[i] = val));
+		Assertions.assertDoesNotThrow(() -> VarIntLong.parseVarLongs(bytes, (val, i) -> {
+			res[i] = val;
+			return true;
+		}));
 		return res;
 	}
 

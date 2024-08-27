@@ -81,10 +81,15 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
 			});
 			String name = readString();
-			NbtCompoundSchema rootValueSchema = nonNullSchema(schema.schemaForCompound(name));
-			NbtCompound root;
+			NbtCompound root = new NbtCompound();
 			try {
-				root = readRootValue(rootValueSchema);
+				// Intentionally hide the rest of NbtCompound's methods in order to not expose them to the Schema
+				@SuppressWarnings("FunctionalExpressionCanBeFolded")
+				OomAware rootAsOnlyOomAware = root::trySaveFromOom;
+
+				NbtCompoundSchema rootValueSchema = nonNullSchema(schema.schemaForRootValue(name, rootAsOnlyOomAware));
+				di.setOomAware(oomAware = rootAsOnlyOomAware);
+				readRootValue(rootValueSchema, root);
 			} finally {
 				di.setOomAware(oomAware = null);
 				nestedTarget.clear();
@@ -102,17 +107,14 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		}
 	}
 
-	@NotNull
-	private NbtCompound readRootValue(@NotNull NbtCompoundSchema schema)
+	private void readRootValue(@NotNull NbtCompoundSchema schema, @NotNull NbtCompound root)
 		throws ReadException, EofException, OomException, NbtParseException, FixedStack.FullStackException {
 		FixedStack<ParsingTarget> nestedTarget = this.nestedTarget;
-		NbtCompound root = new NbtCompound();
-		di.setOomAware(oomAware = root);
 		CompoundTarget target = new CompoundTarget(root, schema);
 		nestedTarget.push(target);
 		for (; ; ) {
 			ListOfListsTarget nextTarget = readMapEntry(target);
-			if (nextTarget == null) return root;
+			if (nextTarget == null) return;
 			target = readListEntries(nextTarget);
 		}
 	}

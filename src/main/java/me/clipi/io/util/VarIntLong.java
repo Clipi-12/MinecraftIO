@@ -37,12 +37,12 @@ public class VarIntLong {
 
 	@FunctionalInterface
 	public interface VarIntConsumer {
-		void accept(int value, int index);
+		boolean acceptAndContinue(int value, int index);
 	}
 
 	@FunctionalInterface
 	public interface VarLongConsumer {
-		void accept(long value, int index);
+		boolean acceptAndContinue(long value, int index);
 	}
 
 	public static void parseVarInts(byte @NotNull [] bytes, @NotNull VarIntConsumer nextInt) throws ParseVarIntLongException {
@@ -55,50 +55,49 @@ public class VarIntLong {
 
 			byte b0 = bytes[byteIdx++];
 			if ((b0 & 128) == 0) {
-				nextInt.accept((b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue((b0 & 127), idx++)) continue;
+				return;
 			}
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[1]">
 			byte b1 = bytes[byteIdx++];
 			if ((b1 & 128) == 0) {
-				nextInt.accept(
-					((b1 & 127) << 7) |
-					(b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue(((b1 & 127) << 7) |
+											  (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[2]">
 			byte b2 = bytes[byteIdx++];
 			if ((b2 & 128) == 0) {
-				nextInt.accept(((b2 & 127) << 14) |
-							   ((b1 & 127) << 7) |
-							   (b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue(((b2 & 127) << 14) |
+											  ((b1 & 127) << 7) |
+											  (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[3]">
 			byte b3 = bytes[byteIdx++];
 			if ((b3 & 128) == 0) {
-				nextInt.accept(((b3 & 127) << 21) |
-							   ((b2 & 127) << 14) |
-							   ((b1 & 127) << 7) |
-							   (b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue(((b3 & 127) << 21) |
+											  ((b2 & 127) << 14) |
+											  ((b1 & 127) << 7) |
+											  (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[4]">
 			byte b4 = bytes[byteIdx++];
 			if ((b4 & 128) == 0) {
-				nextInt.accept(((b4 & 127) << 28) |
-							   ((b3 & 127) << 21) |
-							   ((b2 & 127) << 14) |
-							   ((b1 & 127) << 7) |
-							   (b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue(((b4 & 127) << 28) |
+											  ((b3 & 127) << 21) |
+											  ((b2 & 127) << 14) |
+											  ((b1 & 127) << 7) |
+											  (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -110,18 +109,17 @@ public class VarIntLong {
 
 			byte b0 = bytes[byteIdx++];
 			if ((b0 & 128) == 0) {
-				nextInt.accept((b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue((b0 & 127), idx++)) continue;
+				return;
 			}
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[1]">
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarInt", false);
 			byte b1 = bytes[byteIdx++];
 			if ((b1 & 128) == 0) {
-				nextInt.accept(
-					((b1 & 127) << 7) |
-					(b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue(((b1 & 127) << 7) |
+											  (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -129,10 +127,10 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarInt", false);
 			byte b2 = bytes[byteIdx++];
 			if ((b2 & 128) == 0) {
-				nextInt.accept(((b2 & 127) << 14) |
-							   ((b1 & 127) << 7) |
-							   (b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue(((b2 & 127) << 14) |
+											  ((b1 & 127) << 7) |
+											  (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -140,11 +138,11 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarInt", false);
 			byte b3 = bytes[byteIdx++];
 			if ((b3 & 128) == 0) {
-				nextInt.accept(((b3 & 127) << 21) |
-							   ((b2 & 127) << 14) |
-							   ((b1 & 127) << 7) |
-							   (b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue(((b3 & 127) << 21) |
+											  ((b2 & 127) << 14) |
+											  ((b1 & 127) << 7) |
+											  (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -152,12 +150,12 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarInt", false);
 			byte b4 = bytes[byteIdx++];
 			if ((b4 & 128) == 0) {
-				nextInt.accept(((b4 & 127) << 28) |
-							   ((b3 & 127) << 21) |
-							   ((b2 & 127) << 14) |
-							   ((b1 & 127) << 7) |
-							   (b0 & 127), idx++);
-				continue;
+				if (nextInt.acceptAndContinue(((b4 & 127) << 28) |
+											  ((b3 & 127) << 21) |
+											  ((b2 & 127) << 14) |
+											  ((b1 & 127) << 7) |
+											  (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -175,125 +173,124 @@ public class VarIntLong {
 
 			byte b0 = bytes[byteIdx++];
 			if ((b0 & 128) == 0) {
-				nextLong.accept((b0 & 127), idx++);
-				continue;
+				if (nextLong.acceptAndContinue((b0 & 127), idx++)) continue;
+				return;
 			}
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[1]">
 			byte b1 = bytes[byteIdx++];
 			if ((b1 & 128) == 0) {
-				nextLong.accept(
-					((b1 & 127) << 7) |
-					(b0 & 127), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b1 & 127) << 7) |
+											   (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[2]">
 			byte b2 = bytes[byteIdx++];
 			if ((b2 & 128) == 0) {
-				nextLong.accept(((b2 & 127) << 14) |
-								((b1 & 127) << 7) |
-								(b0 & 127), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b2 & 127) << 14) |
+											   ((b1 & 127) << 7) |
+											   (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[3]">
 			byte b3 = bytes[byteIdx++];
 			if ((b3 & 128) == 0) {
-				nextLong.accept(((b3 & 127) << 21) |
-								((b2 & 127) << 14) |
-								((b1 & 127) << 7) |
-								(b0 & 127), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b3 & 127) << 21) |
+											   ((b2 & 127) << 14) |
+											   ((b1 & 127) << 7) |
+											   (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[4]">
 			byte b4 = bytes[byteIdx++];
 			if ((b4 & 128) == 0) {
-				nextLong.accept(((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[5]">
 			byte b5 = bytes[byteIdx++];
 			if ((b5 & 128) == 0) {
-				nextLong.accept(((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[6]">
 			byte b6 = bytes[byteIdx++];
 			if ((b6 & 128) == 0) {
-				nextLong.accept(((b6 & 127L) << 42) |
-								((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b6 & 127L) << 42) |
+											   ((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[7]">
 			byte b7 = bytes[byteIdx++];
 			if ((b7 & 128) == 0) {
-				nextLong.accept(((b7 & 127L) << 49) |
-								((b6 & 127L) << 42) |
-								((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b7 & 127L) << 49) |
+											   ((b6 & 127L) << 42) |
+											   ((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[8]">
 			byte b8 = bytes[byteIdx++];
 			if ((b8 & 128) == 0) {
-				nextLong.accept(((b8 & 127L) << 56) |
-								((b7 & 127L) << 49) |
-								((b6 & 127L) << 42) |
-								((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b8 & 127L) << 56) |
+											   ((b7 & 127L) << 49) |
+											   ((b6 & 127L) << 42) |
+											   ((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[9]">
 			byte b9 = bytes[byteIdx++];
 			if ((b9 & 128) == 0) {
-				nextLong.accept(((b9 & 127L) << 63) |
-								((b8 & 127L) << 56) |
-								((b7 & 127L) << 49) |
-								((b6 & 127L) << 42) |
-								((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b9 & 127L) << 63) |
+											   ((b8 & 127L) << 56) |
+											   ((b7 & 127L) << 49) |
+											   ((b6 & 127L) << 42) |
+											   ((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -304,18 +301,17 @@ public class VarIntLong {
 
 			byte b0 = bytes[byteIdx++];
 			if ((b0 & 128) == 0) {
-				nextLong.accept((b0 & 127), idx++);
-				continue;
+				if (nextLong.acceptAndContinue((b0 & 127), idx++)) continue;
+				return;
 			}
 
 			// <editor-fold defaultstate="collapsed" desc="bytes[1]">
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarLong", false);
 			byte b1 = bytes[byteIdx++];
 			if ((b1 & 128) == 0) {
-				nextLong.accept(
-					((long) (b1 & 127) << 7) |
-					(b0 & 127), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b1 & 127) << 7) |
+											   (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -323,10 +319,10 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarLong", false);
 			byte b2 = bytes[byteIdx++];
 			if ((b2 & 128) == 0) {
-				nextLong.accept(((long) (b2 & 127) << 14) |
-								((long) (b1 & 127) << 7) |
-								(b0 & 127), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b2 & 127) << 14) |
+											   ((b1 & 127) << 7) |
+											   (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -334,11 +330,11 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarLong", false);
 			byte b3 = bytes[byteIdx++];
 			if ((b3 & 128) == 0) {
-				nextLong.accept(((long) (b3 & 127) << 21) |
-								((long) (b2 & 127) << 14) |
-								((long) (b1 & 127) << 7) |
-								(b0 & 127), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b3 & 127) << 21) |
+											   ((b2 & 127) << 14) |
+											   ((b1 & 127) << 7) |
+											   (b0 & 127), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -346,12 +342,12 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarLong", false);
 			byte b4 = bytes[byteIdx++];
 			if ((b4 & 128) == 0) {
-				nextLong.accept(((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -359,13 +355,13 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarLong", false);
 			byte b5 = bytes[byteIdx++];
 			if ((b5 & 128) == 0) {
-				nextLong.accept(((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -373,14 +369,14 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarLong", false);
 			byte b6 = bytes[byteIdx++];
 			if ((b6 & 128) == 0) {
-				nextLong.accept(((b6 & 127L) << 42) |
-								((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b6 & 127L) << 42) |
+											   ((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -388,15 +384,15 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarLong", false);
 			byte b7 = bytes[byteIdx++];
 			if ((b7 & 128) == 0) {
-				nextLong.accept(((b7 & 127L) << 49) |
-								((b6 & 127L) << 42) |
-								((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b7 & 127L) << 49) |
+											   ((b6 & 127L) << 42) |
+											   ((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -404,16 +400,16 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarLong", false);
 			byte b8 = bytes[byteIdx++];
 			if ((b8 & 128) == 0) {
-				nextLong.accept(((b8 & 127L) << 56) |
-								((b7 & 127L) << 49) |
-								((b6 & 127L) << 42) |
-								((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx++);
-				continue;
+				if (nextLong.acceptAndContinue(((b8 & 127L) << 56) |
+											   ((b7 & 127L) << 49) |
+											   ((b6 & 127L) << 42) |
+											   ((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx++)) continue;
+				return;
 			}
 			// </editor-fold>
 
@@ -421,17 +417,17 @@ public class VarIntLong {
 			if (byteIdx >= len) throw new ParseVarIntLongException("VarLong", false);
 			byte b9 = bytes[byteIdx++];
 			if ((b9 & 128) == 0) {
-				nextLong.accept(((b9 & 127L) << 63) |
-								((b8 & 127L) << 56) |
-								((b7 & 127L) << 49) |
-								((b6 & 127L) << 42) |
-								((b5 & 127L) << 35) |
-								((b4 & 127L) << 28) |
-								((b3 & 127L) << 21) |
-								((b2 & 127L) << 14) |
-								((b1 & 127L) << 7) |
-								(b0 & 127L), idx);
-				continue;
+				if (nextLong.acceptAndContinue(((b9 & 127L) << 63) |
+											   ((b8 & 127L) << 56) |
+											   ((b7 & 127L) << 49) |
+											   ((b6 & 127L) << 42) |
+											   ((b5 & 127L) << 35) |
+											   ((b4 & 127L) << 28) |
+											   ((b3 & 127L) << 21) |
+											   ((b2 & 127L) << 14) |
+											   ((b1 & 127L) << 7) |
+											   (b0 & 127L), idx)) continue;
+				return;
 			}
 			// </editor-fold>
 

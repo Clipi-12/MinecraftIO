@@ -20,6 +20,7 @@
 
 package me.clipi.io.nbt.schema;
 
+import me.clipi.io.OomException;
 import me.clipi.io.util.GrowableArray;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,59 +30,59 @@ public interface NbtListOfListsSchema {
 	@NotNull
 	NbtListOfListsSchema ALWAYS = new AlwaysListOfListsSchema();
 
-	boolean deniesEmptyList(int index);
+	boolean deniesEmptyList(int index) throws OomException;
 
-	boolean deniesByteList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesByteList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesShortList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesShortList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesIntList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesIntList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesLongList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesLongList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesFloatList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesFloatList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
-	boolean deniesDoubleList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesDoubleList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfByteArraysSchema schemaForListOfByteArrays(
-		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfIntArraysSchema schemaForListOfIntArrays(
-		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfLongArraysSchema schemaForListOfLongArrays(
-		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfStringsSchema schemaForListOfStrings(
-		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfListsSchema schemaForListOfLists(
-		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
 	 */
 	@Nullable
 	NbtListOfCompoundsSchema schemaForListOfCompounds(
-		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 }

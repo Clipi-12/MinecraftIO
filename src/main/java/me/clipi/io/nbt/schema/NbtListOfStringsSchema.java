@@ -20,12 +20,13 @@
 
 package me.clipi.io.nbt.schema;
 
+import me.clipi.io.OomException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Range;
 
 public interface NbtListOfStringsSchema {
 	@NotNull
-	NbtListOfStringsSchema ALWAYS = new AlwaysListOfStringsSchema();
+	NbtListOfStringsSchema ALWAYS = (index, modifiedUtf8ByteLength) -> false;
 
-	boolean deniesString(int index, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength);
+	boolean deniesString(int index, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) throws OomException;
 }
