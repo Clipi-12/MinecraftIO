@@ -20,6 +20,7 @@
 
 package me.clipi.io.nbt.schema;
 
+import me.clipi.io.nbt.NbtCompound;
 import me.clipi.io.util.GrowableArray;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -30,123 +31,126 @@ public class AlwaysCompoundSchema implements NbtCompoundSchema {
 	}
 
 	@Override
-	public boolean allowsSizeToBe(int size) {
-		return true;
+	public boolean deniesFinishedCompound(@NotNull NbtCompound compound) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsByte(@NotNull String key) {
-		return true;
+	public boolean deniesByte(@NotNull String key) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsShort(@NotNull String key) {
-		return true;
+	public boolean deniesShort(@NotNull String key) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsInt(@NotNull String key) {
-		return true;
+	public boolean deniesInt(@NotNull String key) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsLong(@NotNull String key) {
-		return true;
+	public boolean deniesLong(@NotNull String key) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsFloat(@NotNull String key) {
-		return true;
+	public boolean deniesFloat(@NotNull String key) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsDouble(@NotNull String key) {
-		return true;
+	public boolean deniesDouble(@NotNull String key) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsByteArray(@NotNull String key, int length) {
-		return true;
+	public boolean deniesByteArray(
+		@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsIntArray(@NotNull String key, int length) {
-		return true;
+	public boolean deniesIntArray(
+		@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsLongArray(@NotNull String key, int length) {
-		return true;
+	public boolean deniesLongArray(
+		@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsString(@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) {
-		return true;
+	public boolean deniesString(@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsEmptyList(@NotNull String key) {
-		return true;
+	public boolean deniesEmptyList(@NotNull String key) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsByteList(
+	public boolean deniesByteList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+		return false;
 	}
 
 	@Override
-	public boolean allowsShortList(
+	public boolean deniesShortList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+		return false;
 	}
 
 	@Override
-	public boolean allowsIntList(
+	public boolean deniesIntList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+		return false;
 	}
 
 	@Override
-	public boolean allowsLongList(
+	public boolean deniesLongList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+		return false;
 	}
 
 	@Override
-	public boolean allowsFloatList(
+	public boolean deniesFloatList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+		return false;
 	}
 
 	@Override
-	public boolean allowsDoubleList(
+	public boolean deniesDoubleList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+		return false;
 	}
 
 	@Override
-	public boolean allowsByteArrayList(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public @Nullable NbtListOfByteArraysSchema schemaForListOfByteArrays(@NotNull String key, @Range(from = 1, to =
+		GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return NbtListOfByteArraysSchema.ALWAYS;
 	}
 
 	@Override
-	public boolean allowsIntArrayList(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public @Nullable NbtListOfIntArraysSchema schemaForListOfIntArrays(@NotNull String key, @Range(from = 1, to =
+		GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return NbtListOfIntArraysSchema.ALWAYS;
 	}
 
 	@Override
-	public boolean allowsLongArrayList(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public @Nullable NbtListOfLongArraysSchema schemaForListOfLongArrays(@NotNull String key, @Range(from = 1, to =
+		GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return NbtListOfLongArraysSchema.ALWAYS;
 	}
 
 	@Override
-	public boolean allowsStringList(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public @Nullable NbtListOfStringsSchema schemaForListOfStrings(@NotNull String key, @Range(from = 1, to =
+		GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return NbtListOfStringsSchema.ALWAYS;
 	}
 
 	@Override

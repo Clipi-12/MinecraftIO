@@ -20,56 +20,78 @@
 
 package me.clipi.io.nbt.schema;
 
+import me.clipi.io.nbt.NbtCompound;
+import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
+import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.util.GrowableArray;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
 public interface NbtCompoundSchema extends NbtRootSchema {
-	boolean allowsSizeToBe(int size);
+	boolean deniesFinishedCompound(@NotNull NbtCompound compound) throws NbtParseException, NbtKeyNotFoundException;
 
-	boolean allowsByte(@NotNull String key);
+	boolean deniesByte(@NotNull String key);
 
-	boolean allowsShort(@NotNull String key);
+	boolean deniesShort(@NotNull String key);
 
-	boolean allowsInt(@NotNull String key);
+	boolean deniesInt(@NotNull String key);
 
-	boolean allowsLong(@NotNull String key);
+	boolean deniesLong(@NotNull String key);
 
-	boolean allowsFloat(@NotNull String key);
+	boolean deniesFloat(@NotNull String key);
 
-	boolean allowsDouble(@NotNull String key);
+	boolean deniesDouble(@NotNull String key);
 
-	boolean allowsByteArray(@NotNull String key, int length);
+	boolean deniesByteArray(@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsIntArray(@NotNull String key, int length);
+	boolean deniesIntArray(@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsLongArray(@NotNull String key, int length);
+	boolean deniesLongArray(@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsString(@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength);
+	boolean deniesString(@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength);
 
-	boolean allowsEmptyList(@NotNull String key);
+	boolean deniesEmptyList(@NotNull String key);
 
-	boolean allowsByteList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesByteList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsShortList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesShortList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsIntList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesIntList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsLongList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesLongList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsFloatList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesFloatList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsDoubleList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesDoubleList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsByteArrayList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	/**
+	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
+	 */
+	@Nullable
+	NbtListOfByteArraysSchema schemaForListOfByteArrays(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsIntArrayList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	/**
+	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
+	 */
+	@Nullable
+	NbtListOfIntArraysSchema schemaForListOfIntArrays(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsLongArrayList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	/**
+	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
+	 */
+	@Nullable
+	NbtListOfLongArraysSchema schemaForListOfLongArrays(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsStringList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
-
+	/**
+	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
+	 */
+	@Nullable
+	NbtListOfStringsSchema schemaForListOfStrings(
+		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.

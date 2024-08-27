@@ -25,7 +25,7 @@ import org.jetbrains.annotations.Nullable;
 
 public interface NbtListOfCompoundsSchema {
 	@NotNull
-	NbtListOfCompoundsSchema NEVER = new NeverListOfCompoundsSchema(), ALWAYS = new AlwaysListOfCompoundsSchema();
+	NbtListOfCompoundsSchema ALWAYS = new AlwaysListOfCompoundsSchema();
 
 	/**
 	 * @return The schema for the specified compound, or {@code null} if the compound is not allowed.

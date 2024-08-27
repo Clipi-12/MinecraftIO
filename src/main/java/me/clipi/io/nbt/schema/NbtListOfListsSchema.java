@@ -27,30 +27,49 @@ import org.jetbrains.annotations.Range;
 
 public interface NbtListOfListsSchema {
 	@NotNull
-	NbtListOfListsSchema NEVER = new NeverListOfListsSchema(), ALWAYS = new AlwaysListOfListsSchema();
+	NbtListOfListsSchema ALWAYS = new AlwaysListOfListsSchema();
 
-	boolean allowsEmptyList(int index);
+	boolean deniesEmptyList(int index);
 
-	boolean allowsByteList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesByteList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsShortList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesShortList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsIntList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesIntList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsLongList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesLongList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsFloatList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesFloatList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsDoubleList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	boolean deniesDoubleList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsByteArrayList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	/**
+	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
+	 */
+	@Nullable
+	NbtListOfByteArraysSchema schemaForListOfByteArrays(
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsIntArrayList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	/**
+	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
+	 */
+	@Nullable
+	NbtListOfIntArraysSchema schemaForListOfIntArrays(
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsLongArrayList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
+	/**
+	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
+	 */
+	@Nullable
+	NbtListOfLongArraysSchema schemaForListOfLongArrays(
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
-	boolean allowsStringList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
-
+	/**
+	 * @return The schema for the specified list, or {@code null} if the list is not allowed.
+	 */
+	@Nullable
+	NbtListOfStringsSchema schemaForListOfStrings(
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length);
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.

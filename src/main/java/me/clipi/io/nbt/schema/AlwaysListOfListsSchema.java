@@ -29,58 +29,62 @@ public class AlwaysListOfListsSchema implements NbtListOfListsSchema {
 	}
 
 	@Override
-	public boolean allowsEmptyList(int index) {
-		return true;
+	public boolean deniesEmptyList(int index) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsByteList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public boolean deniesByteList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsShortList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public boolean deniesShortList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsIntList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public boolean deniesIntList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsLongList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public boolean deniesLongList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsFloatList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public boolean deniesFloatList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsDoubleList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public boolean deniesDoubleList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
 	}
 
 	@Override
-	public boolean allowsByteArrayList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public @Nullable NbtListOfByteArraysSchema schemaForListOfByteArrays(
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return NbtListOfByteArraysSchema.ALWAYS;
 	}
 
 	@Override
-	public boolean allowsIntArrayList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public @Nullable NbtListOfIntArraysSchema schemaForListOfIntArrays(
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return NbtListOfIntArraysSchema.ALWAYS;
 	}
 
 	@Override
-	public boolean allowsLongArrayList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public @Nullable NbtListOfLongArraysSchema schemaForListOfLongArrays(
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return NbtListOfLongArraysSchema.ALWAYS;
 	}
 
 	@Override
-	public boolean allowsStringList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-		return true;
+	public @Nullable NbtListOfStringsSchema schemaForListOfStrings(
+		int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return NbtListOfStringsSchema.ALWAYS;
 	}
 
 	@Override

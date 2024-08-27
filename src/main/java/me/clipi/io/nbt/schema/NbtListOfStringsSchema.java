@@ -21,15 +21,11 @@
 package me.clipi.io.nbt.schema;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Range;
 
-public interface NbtRootSchema {
+public interface NbtListOfStringsSchema {
 	@NotNull
-	NbtCompoundSchema ALWAYS = new AlwaysCompoundSchema();
+	NbtListOfStringsSchema ALWAYS = new AlwaysListOfStringsSchema();
 
-	/**
-	 * @return The schema for the specified compound, or {@code null} if the compound is not allowed.
-	 */
-	@Nullable
-	NbtCompoundSchema schemaForCompound(@NotNull String key);
+	boolean deniesString(int index, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength);
 }

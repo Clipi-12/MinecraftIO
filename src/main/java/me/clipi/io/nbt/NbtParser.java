@@ -25,11 +25,9 @@ import me.clipi.io.EofException;
 import me.clipi.io.NotEofException;
 import me.clipi.io.OomException;
 import me.clipi.io.OomException.OomAware;
+import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
 import me.clipi.io.nbt.exceptions.NbtParseException;
-import me.clipi.io.nbt.schema.NbtCompoundSchema;
-import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema;
-import me.clipi.io.nbt.schema.NbtListOfListsSchema;
-import me.clipi.io.nbt.schema.NbtRootSchema;
+import me.clipi.io.nbt.schema.*;
 import me.clipi.io.util.FixedStack;
 import me.clipi.io.util.GrowableArray;
 import org.jetbrains.annotations.NotNull;
@@ -134,7 +132,12 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			for (; ; ) {
 				int type = di.expectByte();
 				if (type == NbtType.tagEnd) {
-					if (!schema.allowsSizeToBe(target.entries())) throw new NbtParseException.IncorrectSchema();
+					try {
+						if (schema.deniesFinishedCompound(target))
+							throw new NbtParseException.IncorrectSchema();
+					} catch (NbtKeyNotFoundException ignored) {
+						throw new NbtParseException.IncorrectSchema();
+					}
 
 					try {
 						nestedTarget.pop(); // pop self
@@ -155,69 +158,61 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 					case NbtType.tagByte:
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagByte) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsByte(key)) throw new NbtParseException.IncorrectSchema();
+						if (schema.deniesByte(key)) throw new NbtParseException.IncorrectSchema();
 						target.collisionUnsafeAddByte(key, (byte) di.expectByte());
 						break;
 					case NbtType.tagShort:
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagShort) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsShort(key)) throw new NbtParseException.IncorrectSchema();
+						if (schema.deniesShort(key)) throw new NbtParseException.IncorrectSchema();
 						target.collisionUnsafeAddShort(key, (short) di.expectShort());
 						break;
 					case NbtType.tagInt:
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagInt) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsInt(key)) throw new NbtParseException.IncorrectSchema();
+						if (schema.deniesInt(key)) throw new NbtParseException.IncorrectSchema();
 						target.collisionUnsafeAddInt(key, di.expectInt());
 						break;
 					case NbtType.tagLong:
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagLong) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsLong(key)) throw new NbtParseException.IncorrectSchema();
+						if (schema.deniesLong(key)) throw new NbtParseException.IncorrectSchema();
 						target.collisionUnsafeAddLong(key, di.expectLong());
 						break;
 					case NbtType.tagFloat:
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagFloat) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsFloat(key)) throw new NbtParseException.IncorrectSchema();
+						if (schema.deniesFloat(key)) throw new NbtParseException.IncorrectSchema();
 						target.collisionUnsafeAddFloat(key, di.expectFloat());
 						break;
 					case NbtType.tagDouble:
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagDouble) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsDouble(key)) throw new NbtParseException.IncorrectSchema();
+						if (schema.deniesDouble(key)) throw new NbtParseException.IncorrectSchema();
 						target.collisionUnsafeAddDouble(key, di.expectDouble());
 						break;
 					case NbtType.tagByteArray: {
-						int arrayLen = readArrayLen();
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagByteArray) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsByteArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
-						target.collisionUnsafeAddByteArray(key, di.expectByteArray(arrayLen));
+						target.collisionUnsafeAddByteArray(key, readByteArray(schema, key));
 						break;
 					}
 					case NbtType.tagIntArray: {
-						int arrayLen = readArrayLen();
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagIntArray) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsIntArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
-						target.collisionUnsafeAddIntArray(key, di.expectIntArray(arrayLen));
+						target.collisionUnsafeAddIntArray(key, readIntArray(schema, key));
 						break;
 					}
 					case NbtType.tagLongArray: {
-						int arrayLen = readArrayLen();
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagLongArray) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsLongArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
-						target.collisionUnsafeAddLongArray(key, di.expectLongArray(arrayLen));
+						target.collisionUnsafeAddLongArray(key, readLongArray(schema, key));
 						break;
 					}
 					case NbtType.tagString: {
-						int stringLen = di.expectShort();
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagString) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						if (!schema.allowsString(key, stringLen)) throw new NbtParseException.IncorrectSchema();
-						target.collisionUnsafeAddString(key, readString((short) stringLen));
+						target.collisionUnsafeAddString(key, readString(schema, key));
 						break;
 					}
 					case NbtType.tagList: {
@@ -333,26 +328,17 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				if (oomAware != null) oomAware.trySaveFromOom();
 			}
 		};
-		NbtCompound[] maps = readGenericArray(len, NbtCompound[]::new, () ->
+		NbtCompound[] maps = readGenericArray(len, NbtCompound[]::new, i ->
 			// Wrap in OomAware.tryRun because there may be a lot of instances
 			OomAware.tryRun(oomAwareOnlyFirstTimeCalled, NbtCompound::new));
 		CompoundTarget[] targets = readGenericArray(
-			len, CompoundTarget[]::new,
-			new ReadGeneric<CompoundTarget, ReadException>() {
-				@Override
-				public @NotNull CompoundTarget read() {
-					throw new AssertionError();
-				}
-
-				@Override
-				public @NotNull CompoundTarget read(int i) throws OomException, NbtParseException {
-					NbtCompoundSchema compoundSchema = nonNullSchema(schema.schemaForCompound(i));
-					return OomAware.tryRun(oomAwareOnlyFirstTimeCalled,
-										   () -> new CompoundTarget(maps[i], compoundSchema));
-				}
-			});
+			len, CompoundTarget[]::new, i -> {
+				NbtCompoundSchema compoundSchema = nonNullSchema(schema.schemaForCompound(i));
+				return OomAware.tryRun(oomAwareOnlyFirstTimeCalled, () -> new CompoundTarget(maps[i], compoundSchema));
+			}
+		);
 		nestedTarget.pushAll(targets);
-		return NbtList.create(maps);
+		return OomAware.tryRun(oomAwareOnlyFirstTimeCalled, () -> NbtList.create(maps));
 	}
 
 	/**
@@ -363,50 +349,67 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	 * NbtCompound's will be added to the top of the stack as CompoundTarget's, so that they can be parsed.
 	 */
 	@Nullable
-	private NbtList readListValue(int index, @NotNull NbtListOfListsSchema parentSchema) throws ReadException,
-																								EofException,
-																								OomException,
-																								NbtParseException,
-																								FixedStack.FullStackException {
+	private NbtList readListValue(int index, @NotNull NbtListOfListsSchema parentSchema)
+		throws ReadException, EofException, OomException, NbtParseException, FixedStack.FullStackException {
 		int type = di.expectByte();
 		int len = readArrayLen();
 		if (len == 0) {
-			if (!parentSchema.allowsEmptyList(index)) throw new NbtParseException.IncorrectSchema();
+			if (parentSchema.deniesEmptyList(index)) throw new NbtParseException.IncorrectSchema();
 			return NbtList.EMPTY_LIST;
 		}
 		switch (type) {
 			case NbtType.tagEnd:
 				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
-			case NbtType.tagByte:
-				if (!parentSchema.allowsByteList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectByteArray(len));
-			case NbtType.tagShort:
-				if (!parentSchema.allowsShortList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectShortArray(len));
-			case NbtType.tagInt:
-				if (!parentSchema.allowsIntList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectIntArray(len));
-			case NbtType.tagLong:
-				if (!parentSchema.allowsLongList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectLongArray(len));
-			case NbtType.tagFloat:
-				if (!parentSchema.allowsFloatList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectFloatArray(len));
-			case NbtType.tagDouble:
-				if (!parentSchema.allowsDoubleList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectDoubleArray(len));
-			case NbtType.tagByteArray:
-				if (!parentSchema.allowsByteArrayList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(readGenericArray(len, byte[][]::new, this::readByteArray));
-			case NbtType.tagIntArray:
-				if (!parentSchema.allowsIntArrayList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(readGenericArray(len, int[][]::new, this::readIntArray));
-			case NbtType.tagLongArray:
-				if (!parentSchema.allowsLongArrayList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(readGenericArray(len, long[][]::new, this::readLongArray));
-			case NbtType.tagString:
-				if (!parentSchema.allowsStringList(index, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(readGenericArray(len, String[]::new, this::readString));
+			case NbtType.tagByte: {
+				if (parentSchema.deniesByteList(index, len)) throw new NbtParseException.IncorrectSchema();
+				byte[] list = di.expectByteArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagShort: {
+				if (parentSchema.deniesShortList(index, len)) throw new NbtParseException.IncorrectSchema();
+				short[] list = di.expectShortArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagInt: {
+				if (parentSchema.deniesIntList(index, len)) throw new NbtParseException.IncorrectSchema();
+				int[] list = di.expectIntArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagLong: {
+				if (parentSchema.deniesLongList(index, len)) throw new NbtParseException.IncorrectSchema();
+				long[] list = di.expectLongArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagFloat: {
+				if (parentSchema.deniesFloatList(index, len)) throw new NbtParseException.IncorrectSchema();
+				float[] list = di.expectFloatArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagDouble: {
+				if (parentSchema.deniesDoubleList(index, len)) throw new NbtParseException.IncorrectSchema();
+				double[] list = di.expectDoubleArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagByteArray: {
+				NbtListOfByteArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfByteArrays(index, len));
+				byte[][] list = readGenericArray(len, byte[][]::new, i -> readByteArray(schema, i));
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagIntArray: {
+				NbtListOfIntArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfIntArrays(index, len));
+				int[][] list = readGenericArray(len, int[][]::new, i -> readIntArray(schema, i));
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagLongArray: {
+				NbtListOfLongArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfLongArrays(index, len));
+				long[][] list = readGenericArray(len, long[][]::new, i -> readLongArray(schema, i));
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagString: {
+				NbtListOfStringsSchema schema = nonNullSchema(parentSchema.schemaForListOfStrings(index, len));
+				String[] list = readGenericArray(len, String[]::new, i -> readString(schema, i));
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
 			case NbtType.tagList:
 				NbtListOfListsSchema schema = nonNullSchema(parentSchema.schemaForListOfLists(index, len));
 				nestedTarget.push(OomAware.tryRun(oomAware, () -> new ListOfListsTarget(null, len, schema)));
@@ -431,42 +434,62 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		int type = di.expectByte();
 		int len = readArrayLen();
 		if (len == 0) {
-			if (!parentSchema.allowsEmptyList(key)) throw new NbtParseException.IncorrectSchema();
+			if (parentSchema.deniesEmptyList(key)) throw new NbtParseException.IncorrectSchema();
 			return NbtList.EMPTY_LIST;
 		}
 		switch (type) {
 			case NbtType.tagEnd:
 				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
-			case NbtType.tagByte:
-				if (!parentSchema.allowsByteList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectByteArray(len));
-			case NbtType.tagShort:
-				if (!parentSchema.allowsShortList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectShortArray(len));
-			case NbtType.tagInt:
-				if (!parentSchema.allowsIntList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectIntArray(len));
-			case NbtType.tagLong:
-				if (!parentSchema.allowsLongList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectLongArray(len));
-			case NbtType.tagFloat:
-				if (!parentSchema.allowsFloatList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectFloatArray(len));
-			case NbtType.tagDouble:
-				if (!parentSchema.allowsDoubleList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(di.expectDoubleArray(len));
-			case NbtType.tagByteArray:
-				if (!parentSchema.allowsByteArrayList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(readGenericArray(len, byte[][]::new, this::readByteArray));
-			case NbtType.tagIntArray:
-				if (!parentSchema.allowsIntArrayList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(readGenericArray(len, int[][]::new, this::readIntArray));
-			case NbtType.tagLongArray:
-				if (!parentSchema.allowsLongArrayList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(readGenericArray(len, long[][]::new, this::readLongArray));
-			case NbtType.tagString:
-				if (!parentSchema.allowsStringList(key, len)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.create(readGenericArray(len, String[]::new, this::readString));
+			case NbtType.tagByte: {
+				if (parentSchema.deniesByteList(key, len)) throw new NbtParseException.IncorrectSchema();
+				byte[] list = di.expectByteArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagShort: {
+				if (parentSchema.deniesShortList(key, len)) throw new NbtParseException.IncorrectSchema();
+				short[] list = di.expectShortArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagInt: {
+				if (parentSchema.deniesIntList(key, len)) throw new NbtParseException.IncorrectSchema();
+				int[] list = di.expectIntArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagLong: {
+				if (parentSchema.deniesLongList(key, len)) throw new NbtParseException.IncorrectSchema();
+				long[] list = di.expectLongArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagFloat: {
+				if (parentSchema.deniesFloatList(key, len)) throw new NbtParseException.IncorrectSchema();
+				float[] list = di.expectFloatArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagDouble: {
+				if (parentSchema.deniesDoubleList(key, len)) throw new NbtParseException.IncorrectSchema();
+				double[] list = di.expectDoubleArray(len);
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagByteArray: {
+				NbtListOfByteArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfByteArrays(key, len));
+				byte[][] list = readGenericArray(len, byte[][]::new, i -> readByteArray(schema, i));
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagIntArray: {
+				NbtListOfIntArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfIntArrays(key, len));
+				int[][] list = readGenericArray(len, int[][]::new, i -> readIntArray(schema, i));
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagLongArray: {
+				NbtListOfLongArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfLongArrays(key, len));
+				long[][] list = readGenericArray(len, long[][]::new, i -> readLongArray(schema, i));
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
+			case NbtType.tagString: {
+				NbtListOfStringsSchema schema = nonNullSchema(parentSchema.schemaForListOfStrings(key, len));
+				String[] list = readGenericArray(len, String[]::new, i -> readString(schema, i));
+				return OomAware.tryRun(oomAware, () -> NbtList.create(list));
+			}
 			case NbtType.tagList:
 				NbtListOfListsSchema schema = nonNullSchema(parentSchema.schemaForListOfLists(key, len));
 				nestedTarget.push(OomAware.tryRun(oomAware, () -> new ListOfListsTarget(key, len, schema)));
@@ -489,10 +512,24 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	}
 
 	@NotNull
-	private String readString(short len) throws ReadException, EofException, OomException,
-												NbtParseException.InvalidString {
+	private String readString(@NotNull NbtCompoundSchema schema, @NotNull String key)
+		throws ReadException, EofException, OomException, NbtParseException {
+		int stringLen = di.expectShort();
+		if (schema.deniesString(key, stringLen)) throw new NbtParseException.IncorrectSchema();
 		try {
-			return di.expectModifiedUtf8(len);
+			return di.expectModifiedUtf8((short) stringLen);
+		} catch (CheckedBigEndianDataInput.ModifiedUtf8DataFormatException ex) {
+			throw new NbtParseException.InvalidString(ex);
+		}
+	}
+
+	@NotNull
+	private String readString(@NotNull NbtListOfStringsSchema schema, int index)
+		throws ReadException, EofException, OomException, NbtParseException {
+		int stringLen = di.expectShort();
+		if (schema.deniesString(index, stringLen)) throw new NbtParseException.IncorrectSchema();
+		try {
+			return di.expectModifiedUtf8((short) stringLen);
 		} catch (CheckedBigEndianDataInput.ModifiedUtf8DataFormatException ex) {
 			throw new NbtParseException.InvalidString(ex);
 		}
@@ -504,34 +541,58 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		return len;
 	}
 
-	private byte[] readByteArray() throws ReadException, EofException, OomException, NbtParseException {
-		return di.expectByteArray(readArrayLen());
+	private byte @NotNull [] readByteArray(@NotNull NbtCompoundSchema schema, @NotNull String key)
+		throws ReadException, EofException, OomException, NbtParseException {
+		int arrayLen = readArrayLen();
+		if (schema.deniesByteArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
+		return di.expectByteArray(arrayLen);
 	}
 
-	private int[] readIntArray() throws ReadException, EofException, OomException, NbtParseException {
-		return di.expectIntArray(readArrayLen());
+	private byte @NotNull [] readByteArray(@NotNull NbtListOfByteArraysSchema schema, int index)
+		throws ReadException, EofException, OomException, NbtParseException {
+		int arrayLen = readArrayLen();
+		if (schema.deniesByteArray(index, arrayLen)) throw new NbtParseException.IncorrectSchema();
+		return di.expectByteArray(arrayLen);
 	}
 
-	private long[] readLongArray() throws ReadException, EofException, OomException, NbtParseException {
-		return di.expectLongArray(readArrayLen());
+	private int @NotNull [] readIntArray(@NotNull NbtCompoundSchema schema, @NotNull String key)
+		throws ReadException, EofException, OomException, NbtParseException {
+		int arrayLen = readArrayLen();
+		if (schema.deniesIntArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
+		return di.expectIntArray(arrayLen);
+	}
+
+	private int @NotNull [] readIntArray(@NotNull NbtListOfIntArraysSchema schema, int index)
+		throws ReadException, EofException, OomException, NbtParseException {
+		int arrayLen = readArrayLen();
+		if (schema.deniesIntArray(index, arrayLen)) throw new NbtParseException.IncorrectSchema();
+		return di.expectIntArray(arrayLen);
+	}
+
+	private long @NotNull [] readLongArray(@NotNull NbtCompoundSchema schema, @NotNull String key)
+		throws ReadException, EofException, OomException, NbtParseException {
+		int arrayLen = readArrayLen();
+		if (schema.deniesLongArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema();
+		return di.expectLongArray(arrayLen);
+	}
+
+	private long @NotNull [] readLongArray(@NotNull NbtListOfLongArraysSchema schema, int index)
+		throws ReadException, EofException, OomException, NbtParseException {
+		int arrayLen = readArrayLen();
+		if (schema.deniesLongArray(index, arrayLen)) throw new NbtParseException.IncorrectSchema();
+		return di.expectLongArray(arrayLen);
 	}
 
 
 	@FunctionalInterface
 	private interface ReadGeneric<T, ReadException extends Throwable> {
 		@NotNull
-		T read() throws ReadException, EofException, OomException, NbtParseException;
-
-		@NotNull
-		default T read(int index) throws ReadException, EofException, OomException, NbtParseException {
-			return read();
-		}
+		T read(int index) throws ReadException, EofException, OomException, NbtParseException;
 	}
 
 	private <T> T[] readGenericArray(int len, @NotNull IntFunction<T @NotNull []> genArray,
 									 @NotNull ReadGeneric<T, ReadException> read)
 		throws ReadException, EofException, OomException, NbtParseException {
-
 		T[] array = OomAware.tryRun(oomAware, () -> genArray.apply(len));
 		assert array.length == len;
 		for (int i = 0; i < len; ++i)

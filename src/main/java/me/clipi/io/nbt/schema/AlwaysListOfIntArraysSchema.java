@@ -20,16 +20,15 @@
 
 package me.clipi.io.nbt.schema;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import me.clipi.io.util.GrowableArray;
+import org.jetbrains.annotations.Range;
 
-public interface NbtRootSchema {
-	@NotNull
-	NbtCompoundSchema ALWAYS = new AlwaysCompoundSchema();
+public class AlwaysListOfIntArraysSchema implements NbtListOfIntArraysSchema {
+	protected AlwaysListOfIntArraysSchema() {
+	}
 
-	/**
-	 * @return The schema for the specified compound, or {@code null} if the compound is not allowed.
-	 */
-	@Nullable
-	NbtCompoundSchema schemaForCompound(@NotNull String key);
+	@Override
+	public boolean deniesIntArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+		return false;
+	}
 }
