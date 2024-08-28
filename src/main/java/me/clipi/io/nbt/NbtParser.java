@@ -81,7 +81,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				throw new NbtParseException.UnexpectedTagType(NbtType.Compound, type);
 			});
 			String name = readString();
-			NbtCompound root = new NbtCompound();
+			NbtCompound root = new NbtCompound(null);
 			try {
 				// Intentionally hide the rest of NbtCompound's methods in order to not expose them to the Schema
 				@SuppressWarnings("FunctionalExpressionCanBeFolded")
@@ -244,9 +244,15 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 					case NbtType.tagCompound: {
 						if (target.indexForKeyWithTypeOrNeg(key, NbtType.tagCompound) >= 0)
 							throw new NbtParseException.DuplicatedKey(key, target);
-						NbtCompound newDepth = new NbtCompound();
+						NbtCompound newDepth = OomAware.tryRun(oomAware, () -> {
+							try {
+								return new NbtCompound(oomAware);
+							} catch (OomException ex) {
+								throw new OutOfMemoryError();
+							}
+						});
 						NbtCompoundSchema newSchema = nonNullSchema(schema.schemaForCompound(key));
-						nestedTarget.push(new CompoundTarget(newDepth, newSchema));
+						nestedTarget.push(OomAware.tryRun(oomAware, () -> new CompoundTarget(newDepth, newSchema)));
 						target.collisionUnsafeAddCompound(key, newDepth);
 						target = newDepth;
 						schema = newSchema;
@@ -332,7 +338,13 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		};
 		NbtCompound[] maps = readGenericArray(len, NbtCompound[]::new, i ->
 			// Wrap in OomAware.tryRun because there may be a lot of instances
-			OomAware.tryRun(oomAwareOnlyFirstTimeCalled, NbtCompound::new));
+			OomAware.tryRun(oomAwareOnlyFirstTimeCalled, () -> {
+				try {
+					return new NbtCompound(oomAwareOnlyFirstTimeCalled);
+				} catch (OomException ex) {
+					throw new OutOfMemoryError();
+				}
+			}));
 		CompoundTarget[] targets = readGenericArray(
 			len, CompoundTarget[]::new, i -> {
 				NbtCompoundSchema compoundSchema = nonNullSchema(schema.schemaForCompound(i));

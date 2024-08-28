@@ -21,6 +21,7 @@
 package me.clipi.io.nbt;
 
 import me.clipi.io.OomException;
+import me.clipi.io.OomException.OomAware;
 import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
 import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.util.GrowableArray;
@@ -33,9 +34,9 @@ import java.lang.reflect.Array;
 /**
  * Implementation of a NBT Compound that avoids primitive-boxing
  */
-public class NbtCompound implements NestedToString, OomException.OomAware {
-	private final @NotNull GrowableArray<@NotNull String[]> keys = GrowableArray.generic(String.class, this);
-	private final @NotNull GrowableArray<byte[]> types = GrowableArray.bytes(this);
+public class NbtCompound implements NestedToString, OomAware {
+	private final @NotNull GrowableArray<@NotNull String[]> keys;
+	private final @NotNull GrowableArray<byte[]> types;
 
 	private @Nullable GrowableArray<byte[]> bytes;
 	private @Nullable GrowableArray<short[]> shorts;
@@ -45,10 +46,15 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 	private @Nullable GrowableArray<double[]> doubles;
 	private @Nullable GrowableArray<@NotNull Object[]> objects;
 
+	private final @NotNull OomAware oomAware;
+
 	/**
 	 * package-private
 	 */
-	NbtCompound() {
+	NbtCompound(@Nullable OomAware oomAware) throws OomException {
+		this.oomAware = oomAware == null ? this : oomAware;
+		keys = GrowableArray.generic(String.class, this.oomAware);
+		types = GrowableArray.bytes(this.oomAware);
 	}
 
 	public int entries() {
@@ -85,8 +91,12 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 		}
 	}
 
+	@SuppressWarnings("ConstantValue")
 	@Override
 	public void trySaveFromOom() {
+		// May be true while the object is being constructed
+		if (oomAware == null) return;
+
 		recursivelyShrinkToFit();
 	}
 
@@ -98,37 +108,37 @@ public class NbtCompound implements NestedToString, OomException.OomAware {
 
 	void collisionUnsafeAddByte(@NotNull String key, byte value) throws OomException {
 		addKey(key, NbtType.tagByte);
-		GrowableArray.add(bytes == null ? bytes = GrowableArray.bytes(this) : bytes, value);
+		GrowableArray.add(bytes == null ? bytes = GrowableArray.bytes(oomAware) : bytes, value);
 	}
 
 	void collisionUnsafeAddShort(@NotNull String key, short value) throws OomException {
 		addKey(key, NbtType.tagShort);
-		GrowableArray.add(shorts == null ? shorts = GrowableArray.shorts(this) : shorts, value);
+		GrowableArray.add(shorts == null ? shorts = GrowableArray.shorts(oomAware) : shorts, value);
 	}
 
 	void collisionUnsafeAddInt(@NotNull String key, int value) throws OomException {
 		addKey(key, NbtType.tagInt);
-		GrowableArray.add(ints == null ? ints = GrowableArray.ints(this) : ints, value);
+		GrowableArray.add(ints == null ? ints = GrowableArray.ints(oomAware) : ints, value);
 	}
 
 	void collisionUnsafeAddLong(@NotNull String key, long value) throws OomException {
 		addKey(key, NbtType.tagLong);
-		GrowableArray.add(longs == null ? longs = GrowableArray.longs(this) : longs, value);
+		GrowableArray.add(longs == null ? longs = GrowableArray.longs(oomAware) : longs, value);
 	}
 
 	void collisionUnsafeAddFloat(@NotNull String key, float value) throws OomException {
 		addKey(key, NbtType.tagFloat);
-		GrowableArray.add(floats == null ? floats = GrowableArray.floats(this) : floats, value);
+		GrowableArray.add(floats == null ? floats = GrowableArray.floats(oomAware) : floats, value);
 	}
 
 	void collisionUnsafeAddDouble(@NotNull String key, double value) throws OomException {
 		addKey(key, NbtType.tagDouble);
-		GrowableArray.add(doubles == null ? doubles = GrowableArray.doubles(this) : doubles, value);
+		GrowableArray.add(doubles == null ? doubles = GrowableArray.doubles(oomAware) : doubles, value);
 	}
 
 	private void collisionUnsafeAddObject(@NotNull String key, @NotNull Object value, byte nbtType) throws OomException {
 		addKey(key, nbtType);
-		GrowableArray.add(objects == null ? objects = GrowableArray.generic(Object.class, this) : objects, value);
+		GrowableArray.add(objects == null ? objects = GrowableArray.generic(Object.class, oomAware) : objects, value);
 	}
 
 	void collisionUnsafeAddByteArray(@NotNull String key, byte @NotNull [] value) throws OomException {

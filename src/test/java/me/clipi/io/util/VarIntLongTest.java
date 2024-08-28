@@ -73,8 +73,8 @@ public class VarIntLongTest {
 		}
 	};
 
-	private static int[] getVarInts(byte[] bytes, int size) {
-		int[] res = new int[size];
+	private static Integer[] getVarInts(byte[] bytes, int size) {
+		Integer[] res = new Integer[size];
 		Assertions.assertDoesNotThrow(() -> VarIntLong.parseVarInts(bytes, (val, i) -> {
 			res[i] = val;
 			return true;
@@ -82,8 +82,8 @@ public class VarIntLongTest {
 		return res;
 	}
 
-	private static long[] getVarLongs(byte[] bytes, int size) {
-		long[] res = new long[size];
+	private static Long[] getVarLongs(byte[] bytes, int size) {
+		Long[] res = new Long[size];
 		Assertions.assertDoesNotThrow(() -> VarIntLong.parseVarLongs(bytes, (val, i) -> {
 			res[i] = val;
 			return true;
@@ -125,9 +125,8 @@ public class VarIntLongTest {
 			ArrayList<Map.Entry<byte[], Integer>> entries = new ArrayList<>(varInts.entrySet());
 			Collections.shuffle(entries, rng);
 			byte[] input = concat(entries.stream().map(Map.Entry::getKey).toList());
-			int[] expected = entries.stream().mapToInt(Map.Entry::getValue).toArray();
-			int[] result = getVarInts(input, entries.size());
-			int[] asd = getVarInts(input, entries.size());
+			Integer[] expected = entries.stream().map(Map.Entry::getValue).toArray(Integer[]::new);
+			Integer[] result = getVarInts(input, entries.size());
 			Assertions.assertArrayEquals(expected, result);
 		}
 	}
@@ -139,8 +138,8 @@ public class VarIntLongTest {
 			ArrayList<Map.Entry<byte[], Long>> entries = new ArrayList<>(varLongs.entrySet());
 			Collections.shuffle(entries, rng);
 			byte[] input = concat(entries.stream().map(Map.Entry::getKey).toList());
-			long[] expected = entries.stream().mapToLong(Map.Entry::getValue).toArray();
-			long[] result = getVarLongs(input, entries.size());
+			Long[] expected = entries.stream().map(Map.Entry::getValue).toArray(Long[]::new);
+			Long[] result = getVarLongs(input, entries.size());
 			Assertions.assertArrayEquals(expected, result);
 		}
 	}

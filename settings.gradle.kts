@@ -1,1 +1,1 @@
-rootProject.name = "Schematic Reader"
+rootProject.name = "MinecraftIO"

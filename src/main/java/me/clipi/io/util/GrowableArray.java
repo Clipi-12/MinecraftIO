@@ -88,6 +88,23 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> implement
 		tryShrinkToFit();
 	}
 
+	/**
+	 * Zero-extends the array (or null-extends, if the component type of the array is not a primitive) until the new
+	 * length is the desired one.
+	 * <p>Subsequent additions to this {@link GrowableArray} will start at that index
+	 */
+	public void zeroExtend(int newLength) throws OomException {
+		int diff = newLength - nextIdx;
+		if (diff < 0) throw new IllegalArgumentException("Cannot zero-extend the array to " + newLength +
+														 " elements, since the array already has " + nextIdx +
+														 " elements!");
+		if (newLength <= Array.getLength(inner)) {
+			nextIdx = newLength;
+			return;
+		}
+		ensureCapacityFor(diff);
+	}
+
 	@SuppressWarnings("SuspiciousSystemArraycopy")
 	private int ensureCapacityFor(int amount) throws OomException {
 		assert amount >= 0 & this.nextIdx >= 0;
@@ -113,33 +130,34 @@ public class GrowableArray<ArrayType extends Cloneable & Serializable> implement
 	}
 
 	@SuppressWarnings("unchecked")
-	public static <T> GrowableArray<T[]> generic(@NotNull Class<T> tClass, @Nullable OomAware oomAware) {
-		return new GrowableArray<>(oomAware, 16, size -> (T[]) Array.newInstance(tClass, size));
+	public static <T> GrowableArray<T[]> generic(@NotNull Class<T> tClass, @Nullable OomAware oomAware) throws OomException {
+		return OomAware.tryRun(oomAware, () ->
+			new GrowableArray<>(oomAware, 16, size -> (T[]) Array.newInstance(tClass, size)));
 	}
 
 	// <editor-fold defaultstate="collapsed" desc="create methods">
-	public static GrowableArray<byte[]> bytes(@Nullable OomAware oomAware) {
-		return new GrowableArray<>(oomAware, 32, byte[]::new);
+	public static GrowableArray<byte[]> bytes(@Nullable OomAware oomAware) throws OomException {
+		return OomAware.tryRun(oomAware, () -> new GrowableArray<>(oomAware, 32, byte[]::new));
 	}
 
-	public static GrowableArray<short[]> shorts(@Nullable OomAware oomAware) {
-		return new GrowableArray<>(oomAware, 16, short[]::new);
+	public static GrowableArray<short[]> shorts(@Nullable OomAware oomAware) throws OomException {
+		return OomAware.tryRun(oomAware, () -> new GrowableArray<>(oomAware, 16, short[]::new));
 	}
 
-	public static GrowableArray<int[]> ints(@Nullable OomAware oomAware) {
-		return new GrowableArray<>(oomAware, 8, int[]::new);
+	public static GrowableArray<int[]> ints(@Nullable OomAware oomAware) throws OomException {
+		return OomAware.tryRun(oomAware, () -> new GrowableArray<>(oomAware, 8, int[]::new));
 	}
 
-	public static GrowableArray<long[]> longs(@Nullable OomAware oomAware) {
-		return new GrowableArray<>(oomAware, 4, long[]::new);
+	public static GrowableArray<long[]> longs(@Nullable OomAware oomAware) throws OomException {
+		return OomAware.tryRun(oomAware, () -> new GrowableArray<>(oomAware, 4, long[]::new));
 	}
 
-	public static GrowableArray<float[]> floats(@Nullable OomAware oomAware) {
-		return new GrowableArray<>(oomAware, 8, float[]::new);
+	public static GrowableArray<float[]> floats(@Nullable OomAware oomAware) throws OomException {
+		return OomAware.tryRun(oomAware, () -> new GrowableArray<>(oomAware, 8, float[]::new));
 	}
 
-	public static GrowableArray<double[]> doubles(@Nullable OomAware oomAware) {
-		return new GrowableArray<>(oomAware, 4, double[]::new);
+	public static GrowableArray<double[]> doubles(@Nullable OomAware oomAware) throws OomException {
+		return OomAware.tryRun(oomAware, () -> new GrowableArray<>(oomAware, 4, double[]::new));
 	}
 	// </editor-fold>
 

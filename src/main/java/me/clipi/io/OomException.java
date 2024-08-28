@@ -44,7 +44,7 @@ public final class OomException extends Exception {
 			return tryRun(this, memoryExpensiveComputation);
 		}
 
-		default <R> R tryRunOrNull(@NotNull Supplier<R> memoryExpensiveComputation) {
+		default <R> R tryRunOrNull(@NotNull Supplier<@NotNull R> memoryExpensiveComputation) {
 			return tryRunOrNull(this, memoryExpensiveComputation);
 		}
 
@@ -64,8 +64,8 @@ public final class OomException extends Exception {
 		}
 
 		@Nullable
-		static <R> R tryRunOrNull(@Nullable OomAware oomAware,
-								  @NotNull Supplier<@NotNull R> memoryExpensiveComputation) {
+		static <R> R tryRunOrNull(
+			@Nullable OomAware oomAware, @NotNull Supplier<@NotNull R> memoryExpensiveComputation) {
 			try {
 				return memoryExpensiveComputation.get();
 			} catch (OutOfMemoryError ignored) {

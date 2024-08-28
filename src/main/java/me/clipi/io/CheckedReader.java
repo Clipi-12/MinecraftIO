@@ -41,7 +41,7 @@ import java.io.InputStream;
  *
  * @apiNote This interface is <strong>not</strong> thread safe.
  */
-public interface CheckedReader<ReadException extends Exception> {
+public interface CheckedReader<ReadException extends Throwable> {
 	/**
 	 * Fetches a byte from the underlying input, or a negative number as an EOF tag.
 	 * <p>Calls to this method after the first EOF tag must always return EOF tags until the underlying input is
@@ -100,7 +100,7 @@ public interface CheckedReader<ReadException extends Exception> {
 	 * as its buffers will be able to be reused without the results interfering with one another.
 	 */
 	@SafeVarargs
-	static <E extends Exception> CheckedReader<E> concat(@NotNull CheckedReader<? extends E> @NotNull ... readers) {
+	static <E extends Throwable> CheckedReader<E> concat(@NotNull CheckedReader<? extends E> @NotNull ... readers) {
 		final int len = readers.length;
 		return new CheckedReader<E>() {
 			private int nextIndex;
@@ -150,18 +150,18 @@ public interface CheckedReader<ReadException extends Exception> {
 				int i = nextIndex;
 				nextIndex = len;
 
-				Exception thrown = null;
+				Throwable thrown = null;
 				if (reader != null) {
 					try {
 						reader.closeAll();
-					} catch (Exception ex) {
+					} catch (Throwable ex) {
 						thrown = ex;
 					}
 				}
 				for (; i < len; ++i) {
 					try {
 						readers[i].closeAll();
-					} catch (Exception ex) {
+					} catch (Throwable ex) {
 						if (thrown == null) {
 							thrown = ex;
 						} else {
@@ -170,7 +170,9 @@ public interface CheckedReader<ReadException extends Exception> {
 					}
 				}
 				if (thrown != null) {
-					if (thrown instanceof RuntimeException) {
+					if (thrown instanceof Error) {
+						throw (Error) thrown;
+					} else if (thrown instanceof RuntimeException) {
 						throw (RuntimeException) thrown;
 					} else {
 						throw (E) thrown;
