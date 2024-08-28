@@ -34,8 +34,7 @@ import java.lang.reflect.Array;
 /**
  * Implementation of a NBT Compound that avoids primitive-boxing
  */
-public class NbtCompound implements NestedToString, OomAware {
-	private final @NotNull GrowableArray<@NotNull String[]> keys;
+public final class NbtCompound extends ValuelessNbtCompound implements NestedToString, OomAware {
 	private final @NotNull GrowableArray<byte[]> types;
 
 	private @Nullable GrowableArray<byte[]> bytes;
@@ -46,20 +45,18 @@ public class NbtCompound implements NestedToString, OomAware {
 	private @Nullable GrowableArray<double[]> doubles;
 	private @Nullable GrowableArray<@NotNull Object[]> objects;
 
-	private final @NotNull OomAware oomAware;
+	static void clinit() {
+		SaveCompoundSchema.nbtCompoundConstructor = NbtCompound::new;
+	}
 
-	/**
-	 * package-private
-	 */
-	NbtCompound(@Nullable OomAware oomAware) throws OomException {
-		this.oomAware = oomAware == null ? this : oomAware;
-		keys = GrowableArray.generic(String.class, this.oomAware);
+	private NbtCompound(@Nullable OomAware oomAware) throws OomException {
+		super(oomAware);
 		types = GrowableArray.bytes(this.oomAware);
 	}
 
 	public int entries() {
-		int len = types.getSize();
-		assert len == keys.getSize() &
+		int len = super.entries();
+		assert len == types.getSize() &
 			   len == (bytes == null ? 0 : bytes.getSize()) +
 					  (shorts == null ? 0 : shorts.getSize()) +
 					  (ints == null ? 0 : ints.getSize()) +
@@ -71,7 +68,7 @@ public class NbtCompound implements NestedToString, OomAware {
 	}
 
 	public void recursivelyShrinkToFit() {
-		keys.tryShrinkToFit();
+		super.recursivelyShrinkToFit();
 		types.tryShrinkToFit();
 		if (bytes != null) bytes.tryShrinkToFit();
 		if (shorts != null) shorts.tryShrinkToFit();
@@ -83,8 +80,7 @@ public class NbtCompound implements NestedToString, OomAware {
 			objects.tryShrinkToFit();
 			Object[] objects = this.objects.inner;
 			byte[] types = this.types.inner;
-			int count = 0;
-			for (int i = entries() - 1; i >= 0; --i) {
+			for (int i = 0, count = 0, len = this.objects.getSize(); count < len; ++i) {
 				if (types[i] == NbtType.tagCompound)
 					((NbtCompound) objects[count++]).recursivelyShrinkToFit();
 			}
@@ -95,14 +91,15 @@ public class NbtCompound implements NestedToString, OomAware {
 	@Override
 	public void trySaveFromOom() {
 		// May be true while the object is being constructed
-		if (oomAware == null) return;
+		if (types == null) return;
 
 		recursivelyShrinkToFit();
 	}
 
 	// <editor-fold defaultstate="collapsed" desc="add methods">
-	private void addKey(@NotNull String key, byte nbtType) throws OomException {
-		GrowableArray.add(this.keys, key);
+	@Override
+	void addKey(@NotNull String key, byte nbtType) throws OomException {
+		super.addKey(key, nbtType);
 		GrowableArray.add(types, nbtType);
 	}
 
@@ -136,38 +133,11 @@ public class NbtCompound implements NestedToString, OomAware {
 		GrowableArray.add(doubles == null ? doubles = GrowableArray.doubles(oomAware) : doubles, value);
 	}
 
-	private void collisionUnsafeAddObject(@NotNull String key, @NotNull Object value, byte nbtType) throws OomException {
+	void collisionUnsafeAddObject(@NotNull String key, @NotNull Object value, byte nbtType) throws OomException {
 		addKey(key, nbtType);
 		GrowableArray.add(objects == null ? objects = GrowableArray.generic(Object.class, oomAware) : objects, value);
 	}
-
-	void collisionUnsafeAddByteArray(@NotNull String key, byte @NotNull [] value) throws OomException {
-		collisionUnsafeAddObject(key, value, NbtType.tagByteArray);
-	}
-
-	void collisionUnsafeAddIntArray(@NotNull String key, int @NotNull [] value) throws OomException {
-		collisionUnsafeAddObject(key, value, NbtType.tagIntArray);
-	}
-
-	void collisionUnsafeAddLongArray(@NotNull String key, long @NotNull [] value) throws OomException {
-		collisionUnsafeAddObject(key, value, NbtType.tagLongArray);
-	}
-
-	void collisionUnsafeAddString(@NotNull String key, @NotNull String value) throws OomException {
-		collisionUnsafeAddObject(key, value, NbtType.tagString);
-	}
-
-	void collisionUnsafeAddList(@NotNull String key, @NotNull NbtList value) throws OomException {
-		collisionUnsafeAddObject(key, value, NbtType.tagList);
-	}
-
-	void collisionUnsafeAddCompound(@NotNull String key, @NotNull NbtCompound value) throws OomException {
-		// We don't do an exhaustive check for cyclic dependencies since this method is only accessed by the parser
-		assert value != this;
-		collisionUnsafeAddObject(key, value, NbtType.tagCompound);
-	}
 	// </editor-fold>
-
 
 	@Nullable
 	public NbtType typeForKey(@NotNull String key) {
@@ -179,7 +149,7 @@ public class NbtCompound implements NestedToString, OomAware {
 		return null;
 	}
 
-	int indexForKeyWithTypeOrNeg(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType {
+	private int indexForKeyWithTypeOrNeg(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType {
 		assert nbtType > 0 & nbtType < 13;
 
 		String[] keys = this.keys.inner;
@@ -195,12 +165,14 @@ public class NbtCompound implements NestedToString, OomAware {
 					throw new NbtParseException.UnexpectedTagType(NbtType.values()[nbtType], types[i]);
 				return count;
 			}
-			if (types[i] == nbtType | (isObj && types[i] >= NbtType.tagByteArray)) ++count;
+			byte actualType = types[i];
+			if (actualType == nbtType | (isObj & actualType >= NbtType.tagByteArray)) ++count;
 		}
 		return -1;
 	}
 
-	private int indexForKeyWithTypeOrThrow(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
+	private int indexForKeyWithTypeOrThrow(@NotNull String key, byte nbtType)
+		throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
 		int i = indexForKeyWithTypeOrNeg(key, nbtType);
 		if (i < 0) throw new NbtKeyNotFoundException(key, this);
 		return i;

@@ -27,7 +27,19 @@ import org.jetbrains.annotations.Range;
 
 public interface NbtListOfByteArraysSchema {
 	@NotNull
-	NbtListOfByteArraysSchema ALWAYS = (index, length) -> false;
+	NbtListOfByteArraysSchema ALWAYS = new NbtListOfByteArraysSchema() {
+		@Override
+		public boolean deniesByteArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+			return false;
+		}
+
+		@Override
+		public boolean deniesByteArray(int index, byte @NotNull [] value) {
+			return false;
+		}
+	};
 
 	boolean deniesByteArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
+
+	boolean deniesByteArray(int index, byte @NotNull [] value) throws OomException;
 }

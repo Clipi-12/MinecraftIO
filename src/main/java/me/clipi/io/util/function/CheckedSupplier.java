@@ -18,28 +18,17 @@
  * along with MinecraftIO.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package me.clipi.io.nbt.schema;
+package me.clipi.io.util.function;
 
-import me.clipi.io.OomException;
-import me.clipi.io.util.GrowableArray;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Range;
-
-public interface NbtListOfIntArraysSchema {
-	@NotNull
-	NbtListOfIntArraysSchema ALWAYS = new NbtListOfIntArraysSchema() {
-		@Override
-		public boolean deniesIntArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesIntArray(int index, int @NotNull [] value) {
-			return false;
-		}
-	};
-
-	boolean deniesIntArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
-
-	boolean deniesIntArray(int index, int @NotNull [] value) throws OomException;
+/**
+ * Similar to {@link java.util.concurrent.Callable}, but the exception type is generic
+ */
+@FunctionalInterface
+public interface CheckedSupplier<T, E extends Throwable> {
+	/**
+	 * Gets a result.
+	 *
+	 * @return a result
+	 */
+	T get() throws E;
 }

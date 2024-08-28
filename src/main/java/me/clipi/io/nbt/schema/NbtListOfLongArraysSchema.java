@@ -27,7 +27,19 @@ import org.jetbrains.annotations.Range;
 
 public interface NbtListOfLongArraysSchema {
 	@NotNull
-	NbtListOfLongArraysSchema ALWAYS = (index, length) -> false;
+	NbtListOfLongArraysSchema ALWAYS = new NbtListOfLongArraysSchema() {
+		@Override
+		public boolean deniesLongArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+			return false;
+		}
+
+		@Override
+		public boolean deniesLongArray(int index, long @NotNull [] value) {
+			return false;
+		}
+	};
 
 	boolean deniesLongArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
+
+	boolean deniesLongArray(int index, long @NotNull [] value) throws OomException;
 }

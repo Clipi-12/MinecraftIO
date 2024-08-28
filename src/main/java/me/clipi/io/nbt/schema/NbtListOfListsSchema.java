@@ -28,21 +28,34 @@ import org.jetbrains.annotations.Range;
 
 public interface NbtListOfListsSchema {
 	@NotNull
-	NbtListOfListsSchema ALWAYS = new AlwaysListOfListsSchema();
+	NbtListOfListsSchema ALWAYS = new AllowAllListOfListsSchema() {
+	};
 
 	boolean deniesEmptyList(int index) throws OomException;
 
 	boolean deniesByteList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
+	boolean deniesByteList(int index, byte @NotNull [] value) throws OomException;
+
 	boolean deniesShortList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
+
+	boolean deniesShortList(int index, short @NotNull [] value) throws OomException;
 
 	boolean deniesIntList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
+	boolean deniesIntList(int index, int @NotNull [] value) throws OomException;
+
 	boolean deniesLongList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
+
+	boolean deniesLongList(int index, long @NotNull [] value) throws OomException;
 
 	boolean deniesFloatList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
+	boolean deniesFloatList(int index, float @NotNull [] value) throws OomException;
+
 	boolean deniesDoubleList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
+
+	boolean deniesDoubleList(int index, double @NotNull [] value) throws OomException;
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.

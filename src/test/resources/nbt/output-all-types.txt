@@ -66,10 +66,10 @@ NbtRoot {
 						component type: NbtType Compound,
 						size: int 2,
 						array: NbtCompound[] [
-							NbtCompound {
+							{
 								key: "value"
 							},
-							NbtCompound {
+							{
 								key: "value"
 							}
 						]

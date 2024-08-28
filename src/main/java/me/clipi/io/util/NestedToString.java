@@ -29,7 +29,7 @@ public interface NestedToString {
 	@NotNull
 	default String nestedToString() {
 		Nester nester = new Nester();
-		nester.append(this);
+		nester.append(this, true);
 		return nester.finish();
 	}
 
@@ -39,7 +39,6 @@ public interface NestedToString {
 	void toString(@NotNull Nester nester);
 
 	class Nester {
-		private boolean explicitType = true;
 		private int depth;
 		private final StringBuilder str = new StringBuilder();
 
@@ -54,15 +53,15 @@ public interface NestedToString {
 			if (key instanceof String) {
 				str.append(key);
 			} else {
-				append(key);
+				append(key, true);
 			}
 			str.append(": ");
-			append(val);
+			append(val, true);
 			str.append(',');
 			return this;
 		}
 
-		private void append(Object obj) {
+		private void append(Object obj, boolean explicitType) {
 			if (obj != null) {
 				Class<?> objClass = obj.getClass();
 				if (obj instanceof String) {
@@ -86,19 +85,19 @@ public interface NestedToString {
 					return;
 				} else if (obj instanceof Iterable | objClass.isArray()) {
 					Iterable<?> iter;
+					boolean showEachElementType;
 					if (objClass.isArray()) {
-						if (Modifier.isFinal(objClass.getComponentType().getModifiers()))
-							explicitType = false;
+						showEachElementType = !Modifier.isFinal(objClass.getComponentType().getModifiers());
 						iter = BoxedArrayIterable.infer(obj);
 					} else {
+						showEachElementType = true;
 						iter = (Iterable<?>) obj;
 					}
 					appendComposite('[', ']', () -> iter.forEach(o -> {
 						nlTabs();
-						append(o);
+						append(o, showEachElementType);
 						str.append(',');
 					}));
-					explicitType = true;
 					return;
 				}
 			}

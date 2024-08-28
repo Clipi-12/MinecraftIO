@@ -30,7 +30,7 @@ public class NbtKeyNotFoundException extends Exception {
 	public final @NotNull String key;
 
 	public NbtKeyNotFoundException(@NotNull String key, @NotNull NbtCompound compound) {
-		super("Key " + key + " is not present in the NBT Compound " + compound);
+		super("Key " + key + " is not present in the NBT Compound " + compound.nestedToString());
 		this.key = key;
 		this.compoundBeingConstructed = compound;
 	}

@@ -21,8 +21,8 @@
 package me.clipi.io.nbt.exceptions;
 
 import me.clipi.io.CheckedBigEndianDataInput.ModifiedUtf8DataFormatException;
-import me.clipi.io.nbt.NbtCompound;
 import me.clipi.io.nbt.NbtType;
+import me.clipi.io.util.NestedToString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -83,11 +83,11 @@ public abstract class NbtParseException extends Exception {
 	public static class DuplicatedKey extends NbtParseException {
 		private static final long serialVersionUID = -482101492020003634L;
 
-		public final @NotNull NbtCompound compoundBeingConstructed;
+		public final @NotNull NestedToString compoundBeingConstructed;
 		public final @NotNull String key;
 
-		public DuplicatedKey(@NotNull String key, @NotNull NbtCompound compoundBeingConstructed) {
-			super("Key " + key + " is already present in the NBT Compound " + compoundBeingConstructed);
+		public DuplicatedKey(@NotNull String key, @NotNull NestedToString compoundBeingConstructed) {
+			super("Key " + key + " is already present in the NBT Compound represented by: " + compoundBeingConstructed);
 			this.key = key;
 			this.compoundBeingConstructed = compoundBeingConstructed;
 		}

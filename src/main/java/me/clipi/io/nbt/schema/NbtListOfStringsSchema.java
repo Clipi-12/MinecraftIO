@@ -26,7 +26,19 @@ import org.jetbrains.annotations.Range;
 
 public interface NbtListOfStringsSchema {
 	@NotNull
-	NbtListOfStringsSchema ALWAYS = (index, modifiedUtf8ByteLength) -> false;
+	NbtListOfStringsSchema ALWAYS = new NbtListOfStringsSchema() {
+		@Override
+		public boolean deniesString(int index, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) {
+			return false;
+		}
+
+		@Override
+		public boolean deniesString(int index, @NotNull String value) {
+			return false;
+		}
+	};
 
 	boolean deniesString(int index, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) throws OomException;
+
+	boolean deniesString(int index, @NotNull String value) throws OomException;
 }

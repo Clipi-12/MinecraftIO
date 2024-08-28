@@ -31,11 +31,11 @@ NbtRoot {
 			component type: NbtType Compound,
 			size: int 2,
 			array: NbtCompound[] [
-				NbtCompound {
+				{
 					name: "Compound tag #1",
 					created-on: long 1264099775885
 				},
-				NbtCompound {
+				{
 					name: "Compound tag #0",
 					created-on: long 1264099775885
 				}

@@ -22,11 +22,12 @@ package me.clipi.io.nbt.schema;
 
 import me.clipi.io.OomException;
 import me.clipi.io.util.GrowableArray;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
-public class NeverListOfListsSchema implements NbtListOfListsSchema {
-	protected NeverListOfListsSchema() {
+public abstract class DenyAllListOfListsSchema implements NbtListOfListsSchema {
+	protected DenyAllListOfListsSchema() {
 	}
 
 	@Override
@@ -40,7 +41,17 @@ public class NeverListOfListsSchema implements NbtListOfListsSchema {
 	}
 
 	@Override
+	public boolean deniesByteList(int index, byte @NotNull [] value) throws OomException {
+		return true;
+	}
+
+	@Override
 	public boolean deniesShortList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
+		return true;
+	}
+
+	@Override
+	public boolean deniesShortList(int index, short @NotNull [] value) throws OomException {
 		return true;
 	}
 
@@ -50,7 +61,17 @@ public class NeverListOfListsSchema implements NbtListOfListsSchema {
 	}
 
 	@Override
+	public boolean deniesIntList(int index, int @NotNull [] value) throws OomException {
+		return true;
+	}
+
+	@Override
 	public boolean deniesLongList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
+		return true;
+	}
+
+	@Override
+	public boolean deniesLongList(int index, long @NotNull [] value) throws OomException {
 		return true;
 	}
 
@@ -60,7 +81,17 @@ public class NeverListOfListsSchema implements NbtListOfListsSchema {
 	}
 
 	@Override
+	public boolean deniesFloatList(int index, float @NotNull [] value) throws OomException {
+		return true;
+	}
+
+	@Override
 	public boolean deniesDoubleList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
+		return true;
+	}
+
+	@Override
+	public boolean deniesDoubleList(int index, double @NotNull [] value) throws OomException {
 		return true;
 	}
 

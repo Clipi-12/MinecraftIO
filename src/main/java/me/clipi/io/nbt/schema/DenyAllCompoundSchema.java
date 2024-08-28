@@ -21,7 +21,6 @@
 package me.clipi.io.nbt.schema;
 
 import me.clipi.io.OomException;
-import me.clipi.io.nbt.NbtCompound;
 import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
 import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.util.GrowableArray;
@@ -29,144 +28,199 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
-public class AlwaysCompoundSchema implements NbtCompoundSchema {
-	protected AlwaysCompoundSchema() {
+public abstract class DenyAllCompoundSchema implements NbtCompoundSchema {
+	protected DenyAllCompoundSchema() {
 	}
 
 	@Override
-	public boolean deniesFinishedCompound(@NotNull NbtCompound compound)
-		throws OomException, NbtParseException, NbtKeyNotFoundException {
-		return false;
+	@NotNull
+	public final String toString() {
+		return nestedToString();
 	}
 
 	@Override
-	public boolean deniesByte(@NotNull String key) throws OomException {
-		return false;
+	public boolean deniesFinishedCompound() throws OomException, NbtParseException, NbtKeyNotFoundException {
+		return true;
 	}
 
 	@Override
-	public boolean deniesShort(@NotNull String key) throws OomException {
-		return false;
+	public boolean deniesByte(@NotNull String key, @Range(from = 0, to = (1 << 8) - 1) int value) throws OomException {
+		return true;
 	}
 
 	@Override
-	public boolean deniesInt(@NotNull String key) throws OomException {
-		return false;
+	public boolean deniesShort(@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int value) throws OomException {
+		return true;
 	}
 
 	@Override
-	public boolean deniesLong(@NotNull String key) throws OomException {
-		return false;
+	public boolean deniesInt(@NotNull String key, int value) throws OomException {
+		return true;
 	}
 
 	@Override
-	public boolean deniesFloat(@NotNull String key) throws OomException {
-		return false;
+	public boolean deniesLong(@NotNull String key, long value) throws OomException {
+		return true;
 	}
 
 	@Override
-	public boolean deniesDouble(@NotNull String key) throws OomException {
-		return false;
+	public boolean deniesFloat(@NotNull String key, float value) throws OomException {
+		return true;
+	}
+
+	@Override
+	public boolean deniesDouble(@NotNull String key, double value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesByteArray(
 		@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesByteArray(@NotNull String key, byte @NotNull [] value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesIntArray(@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesIntArray(@NotNull String key, int @NotNull [] value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesLongArray(
 		@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesLongArray(@NotNull String key, long @NotNull [] value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesString(@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesString(@NotNull String key, @NotNull String value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesEmptyList(@NotNull String key) throws OomException {
-		return false;
+		return true;
 	}
 
 	@Override
 	public boolean deniesByteList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesByteList(@NotNull String key, byte @NotNull [] value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesShortList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesShortList(@NotNull String key, short @NotNull [] value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesIntList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesIntList(@NotNull String key, int @NotNull [] value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesLongList(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesLongList(@NotNull String key, long @NotNull [] value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesFloatList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesFloatList(@NotNull String key, float @NotNull [] value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public boolean deniesDoubleList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return false;
+		return true;
+	}
+
+	@Override
+	public boolean deniesDoubleList(@NotNull String key, double @NotNull [] value) throws OomException {
+		return true;
 	}
 
 	@Override
 	public @Nullable NbtListOfByteArraysSchema schemaForListOfByteArrays(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return NbtListOfByteArraysSchema.ALWAYS;
+		return null;
 	}
 
 	@Override
-	public @Nullable NbtListOfIntArraysSchema schemaForListOfIntArrays(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return NbtListOfIntArraysSchema.ALWAYS;
+	public @Nullable NbtListOfIntArraysSchema schemaForListOfIntArrays
+		(@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
+		return null;
 	}
 
 	@Override
 	public @Nullable NbtListOfLongArraysSchema schemaForListOfLongArrays(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return NbtListOfLongArraysSchema.ALWAYS;
+		return null;
 	}
 
 	@Override
 	public @Nullable NbtListOfStringsSchema schemaForListOfStrings(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return NbtListOfStringsSchema.ALWAYS;
+		return null;
 	}
 
 	@Override
 	public @Nullable NbtListOfListsSchema schemaForListOfLists(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return NbtListOfListsSchema.ALWAYS;
+		return null;
 	}
 
 	@Override
 	public @Nullable NbtListOfCompoundsSchema schemaForListOfCompounds(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return NbtListOfCompoundsSchema.ALWAYS;
+		return null;
 	}
 
 	@Override
 	public @Nullable NbtCompoundSchema schemaForCompound(@NotNull String key) throws OomException {
-		return NbtCompoundSchema.ALWAYS;
+		return null;
 	}
 }
