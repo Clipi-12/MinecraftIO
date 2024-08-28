@@ -104,8 +104,8 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				root = ((SaveCompoundSchema) rootValueSchema).compound;
 			} else {
 				root = ValuelessNbtCompound.create(null);
-				delegatedOomAware[0] = root;
 			}
+			delegatedOomAware[0] = root;
 			try {
 				di.setOomAware(oomAware = root);
 				readRootValue(rootValueSchema, root);

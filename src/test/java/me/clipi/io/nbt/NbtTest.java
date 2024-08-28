@@ -23,17 +23,16 @@ package me.clipi.io.nbt;
 import me.clipi.io.CheckedBigEndianDataInput;
 import me.clipi.io.CheckedReader;
 import me.clipi.io.OomException;
+import me.clipi.io.TestUtils;
 import me.clipi.io.nbt.exceptions.NbtParseException;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Objects;
-import java.util.zip.GZIPInputStream;
+
+import static me.clipi.io.TestUtils.getString;
 
 /**
  * NBT Test files
@@ -41,35 +40,13 @@ import java.util.zip.GZIPInputStream;
  * provided by EngineHub</a>
  */
 public class NbtTest {
-	private static final ClassLoader cl = NbtTest.class.getClassLoader();
-
-	@NotNull
-	private static InputStream resource(@NotNull String resource) {
-		return Objects.requireNonNull(cl.getResourceAsStream(resource));
-	}
-
-	private static String getString(@NotNull String resource) throws IOException {
-		try (InputStream is = resource(resource)) {
-			return new String(is.readAllBytes(), StandardCharsets.UTF_8).trim().replace("\r\n", "\n");
-		}
-	}
-
-	@NotNull
-	private static GZIPInputStream gunzip(@NotNull InputStream is) {
-		try {
-			return new GZIPInputStream(is);
-		} catch (IOException ex) {
-			throw new RuntimeException(ex);
-		}
-	}
-
 	@NotNull
 	@SuppressWarnings("unchecked")
-	private static NbtParser<IOException> getParser(@NotNull String @NotNull ... resources) {
+	public static NbtParser<IOException> getParser(@NotNull String @NotNull ... resources) {
 		return new NbtParser<>(new CheckedBigEndianDataInput<>(CheckedReader.concat(
 			Arrays.stream(resources)
-				  .map(NbtTest::resource)
-				  .map(NbtTest::gunzip)
+				  .map(TestUtils::resource)
+				  .map(TestUtils::gunzip)
 				  .map(CheckedReader::fromIs)
 				  .toArray(CheckedReader[]::new)
 		)));
