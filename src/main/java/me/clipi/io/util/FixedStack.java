@@ -20,6 +20,7 @@
 
 package me.clipi.io.util;
 
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -77,6 +78,7 @@ public final class FixedStack<T> {
 	}
 
 	@NotNull
+	@Contract(pure = true)
 	public T peek() throws EmptyStackException {
 		T res = tryPeek();
 		if (res == null) throw new EmptyStackException();
@@ -123,6 +125,7 @@ public final class FixedStack<T> {
 	}
 
 	@Nullable
+	@Contract(pure = true)
 	public T tryPeek() {
 		int nextIdx = this.nextIdx;
 		if (nextIdx > 0) {

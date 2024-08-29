@@ -32,11 +32,11 @@ NbtRoot {
 			size: int 2,
 			array: NbtCompound[] [
 				{
-					name: "Compound tag #1",
+					name: "Compound tag #0",
 					created-on: long 1264099775885
 				},
 				{
-					name: "Compound tag #0",
+					name: "Compound tag #1",
 					created-on: long 1264099775885
 				}
 			]

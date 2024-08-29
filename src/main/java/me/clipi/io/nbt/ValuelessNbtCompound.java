@@ -124,7 +124,7 @@ abstract class ValuelessNbtCompound implements OomAware {
 	final void collisionUnsafeAddCompound(@NotNull String key, @NotNull ValuelessNbtCompound value) throws OomException {
 		// We don't do an exhaustive check for cyclic dependencies since this method is only accessed by the parser
 		assert value != this;
-		assert value.getClass() == getClass();
+		assert value.getClass() == NbtCompound.class | getClass() == Impl.class;
 		collisionUnsafeAddObject(key, value, NbtType.tagCompound);
 	}
 	// </editor-fold>

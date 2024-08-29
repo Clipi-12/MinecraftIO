@@ -21,12 +21,12 @@
 package me.clipi.io.nbt;
 
 public enum NbtType {
-	End, Byte, Short, Int, Long, Float, Double, String, List, Compound, ByteArray, IntArray, LongArray;
+	End, Byte, Short, Int, Long, Float, Double, ByteArray, String, List, Compound, IntArray, LongArray;
 
 	public final int id = ordinal();
 
 	public static NbtType getByIdOrNull(int id) {
-		return id >= 0 && id <= LongArray.id ? values()[id] : null;
+		return id >= 0 & id <= LongArray.id ? values()[id] : null;
 	}
 
 	/**

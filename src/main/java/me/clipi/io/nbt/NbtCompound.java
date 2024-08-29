@@ -35,15 +35,22 @@ import java.lang.reflect.Array;
  * Implementation of a NBT Compound that avoids primitive-boxing
  */
 public final class NbtCompound extends ValuelessNbtCompound implements NestedToString, OomAware {
-	private final @NotNull GrowableArray<byte[]> types;
+	final @NotNull GrowableArray<byte[]> types;
 
-	private @Nullable GrowableArray<byte[]> bytes;
-	private @Nullable GrowableArray<short[]> shorts;
-	private @Nullable GrowableArray<int[]> ints;
-	private @Nullable GrowableArray<long[]> longs;
-	private @Nullable GrowableArray<float[]> floats;
-	private @Nullable GrowableArray<double[]> doubles;
-	private @Nullable GrowableArray<@NotNull Object[]> objects;
+	@Nullable
+	GrowableArray<byte[]> bytes;
+	@Nullable
+	GrowableArray<short[]> shorts;
+	@Nullable
+	GrowableArray<int[]> ints;
+	@Nullable
+	GrowableArray<long[]> longs;
+	@Nullable
+	GrowableArray<float[]> floats;
+	@Nullable
+	GrowableArray<double[]> doubles;
+	@Nullable
+	GrowableArray<@NotNull Object[]> objects;
 
 	static void clinit() {
 		SaveCompoundSchema.nbtCompoundConstructor = NbtCompound::new;
@@ -292,6 +299,68 @@ public final class NbtCompound extends ValuelessNbtCompound implements NestedToS
 	}
 	// </editor-fold>
 
+	@SuppressWarnings("DataFlowIssue")
+	public void copyTo(@NotNull NbtCompound dest) throws OomException, NbtParseException.DuplicatedKey {
+		// <editor-fold defaultstate="collapsed" desc="code">
+		String[] keys = this.keys.inner;
+		byte[] types = this.types.inner;
+
+		byte[] bytes = this.bytes == null ? null : this.bytes.inner;
+		short[] shorts = this.shorts == null ? null : this.shorts.inner;
+		int[] ints = this.ints == null ? null : this.ints.inner;
+		long[] longs = this.longs == null ? null : this.longs.inner;
+		float[] floats = this.floats == null ? null : this.floats.inner;
+		double[] doubles = this.doubles == null ? null : this.doubles.inner;
+		Object[] objects = this.objects == null ? null : this.objects.inner;
+
+		int bCount = 0, sCount = 0, iCount = 0, lCount = 0, fCount = 0, dCount = 0, oCount = 0;
+
+		for (int i = 0, len = entries(); i < len; ++i) {
+			String key = keys[i];
+			if (dest.containsKey(key)) throw new NbtParseException.DuplicatedKey(key, dest);
+			switch (types[i]) {
+				case NbtType.tagByte:
+					dest.collisionUnsafeAddByte(key, bytes[bCount++]);
+					break;
+				case NbtType.tagShort:
+					dest.collisionUnsafeAddShort(key, shorts[sCount++]);
+					break;
+				case NbtType.tagInt:
+					dest.collisionUnsafeAddInt(key, ints[iCount++]);
+					break;
+				case NbtType.tagLong:
+					dest.collisionUnsafeAddLong(key, longs[lCount++]);
+					break;
+				case NbtType.tagFloat:
+					dest.collisionUnsafeAddFloat(key, floats[fCount++]);
+					break;
+				case NbtType.tagDouble:
+					dest.collisionUnsafeAddDouble(key, doubles[dCount++]);
+					break;
+				case NbtType.tagByteArray:
+					dest.collisionUnsafeAddByteArray(key, (byte[]) objects[oCount++]);
+					break;
+				case NbtType.tagIntArray:
+					dest.collisionUnsafeAddIntArray(key, (int[]) objects[oCount++]);
+					break;
+				case NbtType.tagLongArray:
+					dest.collisionUnsafeAddLongArray(key, (long[]) objects[oCount++]);
+					break;
+				case NbtType.tagString:
+					dest.collisionUnsafeAddString(key, (String) objects[oCount++]);
+					break;
+				case NbtType.tagList:
+					dest.collisionUnsafeAddList(key, (NbtList) objects[oCount++]);
+					break;
+				case NbtType.tagCompound:
+					dest.collisionUnsafeAddCompound(key, (NbtCompound) objects[oCount++]);
+					break;
+				default:
+					throw new IllegalStateException();
+			}
+		}
+		// </editor-fold>
+	}
 
 	@Override
 	@NotNull

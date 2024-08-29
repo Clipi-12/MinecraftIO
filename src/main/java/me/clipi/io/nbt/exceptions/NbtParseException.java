@@ -123,5 +123,9 @@ public abstract class NbtParseException extends Exception {
 		public IncorrectSchema() {
 			super("The specified schema was not met");
 		}
+
+		public IncorrectSchema(Throwable cause) {
+			super("The specified schema was not met", cause);
+		}
 	}
 }

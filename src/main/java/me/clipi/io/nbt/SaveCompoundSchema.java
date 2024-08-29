@@ -29,6 +29,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
+import java.lang.reflect.Array;
+
 public final class SaveCompoundSchema extends AllowAllCompoundSchema {
 	static CheckedFunction<@Nullable OomAware, @NotNull NbtCompound, OomException> nbtCompoundConstructor;
 
@@ -111,6 +113,7 @@ public final class SaveCompoundSchema extends AllowAllCompoundSchema {
 		final @NotNull T @NotNull [] array;
 
 		private ListOfObjects(@NotNull OomAware oomAware, @NotNull T @NotNull [] array) {
+			assert Array.getLength(array) > 0;
 			this.oomAware = oomAware;
 			this.array = array;
 		}
