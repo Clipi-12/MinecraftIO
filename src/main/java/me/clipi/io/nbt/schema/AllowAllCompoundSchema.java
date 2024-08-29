@@ -28,6 +28,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
+@SuppressWarnings("RedundantThrows")
 public abstract class AllowAllCompoundSchema implements NbtCompoundSchema {
 	protected AllowAllCompoundSchema() {
 	}

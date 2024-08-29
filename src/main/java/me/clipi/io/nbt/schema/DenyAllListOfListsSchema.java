@@ -26,6 +26,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
+@SuppressWarnings("RedundantThrows")
 public abstract class DenyAllListOfListsSchema implements NbtListOfListsSchema {
 	protected DenyAllListOfListsSchema() {
 	}

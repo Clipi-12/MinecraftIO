@@ -40,19 +40,8 @@ public final class SaveCompoundSchema extends AllowAllCompoundSchema {
 	public final @NotNull OomAware oomAware;
 
 	@NotNull
-	public static SaveCompoundSchema create(@Nullable OomAware oomAware) throws OomException {
-		return OomAware.tryRun(oomAware, () -> {
-			try {
-				return new SaveCompoundSchema(oomAware);
-			} catch (OomException ex) {
-				throw new OutOfMemoryError();
-			}
-		});
-	}
-
-	@Override
-	public void toString(@NotNull Nester nester) {
-		compound.toString(nester);
+	public static SaveCompoundSchema create(@NotNull OomAware oomAware) throws OomException {
+		return oomAware.tryRun(() -> new SaveCompoundSchema(oomAware));
 	}
 
 	private SaveCompoundSchema(@Nullable OomAware oomAware) throws OomException {
@@ -61,8 +50,8 @@ public final class SaveCompoundSchema extends AllowAllCompoundSchema {
 	}
 
 	@Override
-	public boolean deniesFinishedCompound() {
-		return false;
+	public void toString(@NotNull Nester nester) {
+		compound.toString(nester);
 	}
 
 	// <editor-fold defaultstate="collapsed" desc="list of objects">
@@ -115,9 +104,9 @@ public final class SaveCompoundSchema extends AllowAllCompoundSchema {
 		return SaveCompoundSchema.create(oomAware);
 	}
 
-	static final class ListOfObjects<T> implements NbtListOfByteArraysSchema, NbtListOfIntArraysSchema,
-												   NbtListOfLongArraysSchema, NbtListOfStringsSchema,
-												   NbtListOfListsSchema, NbtListOfCompoundsSchema {
+	static final class ListOfObjects<T> extends AllowAllListOfListsSchema
+		implements NbtListOfByteArraysSchema, NbtListOfIntArraysSchema, NbtListOfLongArraysSchema,
+				   NbtListOfStringsSchema, NbtListOfCompoundsSchema {
 		private final @NotNull OomAware oomAware;
 		final @NotNull T @NotNull [] array;
 
@@ -184,40 +173,6 @@ public final class SaveCompoundSchema extends AllowAllCompoundSchema {
 			array[index] = (T) NbtList.EMPTY_LIST;
 			return false;
 		}
-
-		// <editor-fold defaultstate="collapsed" desc="list of objects with length (ignore length)">
-
-		@Override
-		public boolean deniesByteList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesShortList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesIntList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesLongList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesFloatList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesDoubleList(int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		// </editor-fold>
 
 		// <editor-fold defaultstate="collapsed" desc="list of objects with length">
 		@Override

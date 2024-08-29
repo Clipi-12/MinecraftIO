@@ -38,7 +38,7 @@ public class BlockEntity implements NestedToString {
 	@Override
 	@NotNull
 	public String toString() {
-		return super.toString();
+		return nestedToString();
 	}
 
 	@Override

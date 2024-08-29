@@ -47,7 +47,7 @@ public interface NbtListOfCompoundsSchema {
 		 * <p>None of the elements will be null once the list has been parsed.
 		 */
 		public final T @NotNull [] schemas;
-		private final @Nullable OomAware oomAware;
+		private final @NotNull OomAware oomAware;
 		private final CheckedSupplier<T, OomException> generateSchema;
 
 		/**
@@ -55,14 +55,14 @@ public interface NbtListOfCompoundsSchema {
 		 */
 		@NotNull
 		public static <T extends NbtCompoundSchema> SchemaList<T> create(
-			@Nullable OomAware oomAware,
+			@NotNull OomAware oomAware,
 			@Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length,
 			@NotNull Class<T> tClass, @NotNull CheckedSupplier<T, OomException> generateSchema) throws OomException {
-			return OomAware.tryRun(oomAware, () -> new SchemaList<>(oomAware, length, tClass, generateSchema));
+			return oomAware.tryRun(() -> new SchemaList<>(oomAware, length, tClass, generateSchema));
 		}
 
 		@SuppressWarnings("unchecked")
-		private SchemaList(@Nullable OomAware oomAware, int length, Class<T> tClass,
+		private SchemaList(@NotNull OomAware oomAware, int length, Class<T> tClass,
 						   CheckedSupplier<T, OomException> generateSchema) {
 			this.oomAware = oomAware;
 			this.generateSchema = generateSchema;
@@ -71,13 +71,7 @@ public interface NbtListOfCompoundsSchema {
 
 		@Override
 		public final @Nullable NbtCompoundSchema schemaForCompound(int index) throws OomException {
-			T schema = OomAware.tryRun(oomAware, () -> {
-				try {
-					return generateSchema.get();
-				} catch (OomException ex) {
-					throw new OutOfMemoryError();
-				}
-			});
+			T schema = oomAware.tryRun(generateSchema);
 			schemas[index] = schema;
 			return schema;
 		}

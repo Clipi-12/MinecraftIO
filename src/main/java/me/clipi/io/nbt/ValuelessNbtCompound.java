@@ -37,13 +37,7 @@ abstract class ValuelessNbtCompound implements OomAware {
 	 */
 	@NotNull
 	static ValuelessNbtCompound create(@Nullable OomAware oomAware) throws OomException {
-		return OomAware.tryRun(oomAware, () -> {
-			try {
-				return new Impl(oomAware);
-			} catch (OomException ex) {
-				throw new OutOfMemoryError();
-			}
-		});
+		return OomAware.tryRun(oomAware, () -> new Impl(oomAware));
 	}
 
 	private static final class Impl extends ValuelessNbtCompound {

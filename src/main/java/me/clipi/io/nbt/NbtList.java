@@ -32,7 +32,7 @@ import java.lang.reflect.Array;
  * <p>Empty lists will always be represented by the componentType being the End tag and the backing array being null.
  * The backing array will never be null if the list is not empty.
  */
-public class NbtList implements NestedToString {
+public final class NbtList implements NestedToString {
 	public final @NotNull NbtType componentType;
 	public final @Nullable Object array;
 

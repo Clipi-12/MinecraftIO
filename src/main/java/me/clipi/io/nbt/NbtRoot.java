@@ -23,7 +23,7 @@ package me.clipi.io.nbt;
 import me.clipi.io.util.NestedToString;
 import org.jetbrains.annotations.NotNull;
 
-public class NbtRoot implements NestedToString {
+public final class NbtRoot implements NestedToString {
 	public final String name;
 	public final NbtCompound rootValue;
 

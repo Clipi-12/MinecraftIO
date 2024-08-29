@@ -20,10 +20,9 @@
 
 package me.clipi.io;
 
+import me.clipi.io.util.function.CheckedSupplier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.function.Supplier;
 
 /**
  * Similar to {@link OutOfMemoryError}, but it does not extend {@link Error}
@@ -40,18 +39,19 @@ public final class OomException extends Exception {
 	public interface OomAware {
 		void trySaveFromOom();
 
-		default <R> R tryRun(@NotNull Supplier<R> memoryExpensiveComputation) throws OomException {
+		default <R> R tryRun(@NotNull CheckedSupplier<R, OomException> memoryExpensiveComputation) throws OomException {
 			return tryRun(this, memoryExpensiveComputation);
 		}
 
-		default <R> R tryRunOrNull(@NotNull Supplier<@NotNull R> memoryExpensiveComputation) {
+		default <R> R tryRunOrNull(@NotNull CheckedSupplier<@NotNull R, OomException> memoryExpensiveComputation) {
 			return tryRunOrNull(this, memoryExpensiveComputation);
 		}
 
-		static <R> R tryRun(@Nullable OomAware oomAware, @NotNull Supplier<R> memoryExpensiveComputation) throws OomException {
+		static <R> R tryRun(
+			@Nullable OomAware oomAware, @NotNull CheckedSupplier<R, OomException> memoryExpensiveComputation) throws OomException {
 			try {
 				return memoryExpensiveComputation.get();
-			} catch (OutOfMemoryError ignored) {
+			} catch (OomException | OutOfMemoryError ignored) {
 			}
 			if (oomAware != null) {
 				oomAware.trySaveFromOom();
@@ -65,16 +65,17 @@ public final class OomException extends Exception {
 
 		@Nullable
 		static <R> R tryRunOrNull(
-			@Nullable OomAware oomAware, @NotNull Supplier<@NotNull R> memoryExpensiveComputation) {
+			@Nullable OomAware oomAware,
+			@NotNull CheckedSupplier<@NotNull R, OomException> memoryExpensiveComputation) {
 			try {
 				return memoryExpensiveComputation.get();
-			} catch (OutOfMemoryError ignored) {
+			} catch (OomException | OutOfMemoryError ignored) {
 			}
 			if (oomAware != null) {
 				oomAware.trySaveFromOom();
 				try {
 					return memoryExpensiveComputation.get();
-				} catch (OutOfMemoryError ignored) {
+				} catch (OomException | OutOfMemoryError ignored) {
 				}
 			}
 			return null;

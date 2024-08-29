@@ -99,12 +99,9 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				OomAware oomAware = delegatedOomAware[0];
 				if (oomAware != null) oomAware.trySaveFromOom();
 			}));
-			ValuelessNbtCompound root;
-			if (rootValueSchema instanceof SaveCompoundSchema) {
-				root = ((SaveCompoundSchema) rootValueSchema).compound;
-			} else {
-				root = ValuelessNbtCompound.create(null);
-			}
+			ValuelessNbtCompound root = rootValueSchema instanceof SaveCompoundSchema ?
+				((SaveCompoundSchema) rootValueSchema).compound :
+				ValuelessNbtCompound.create(null);
 			delegatedOomAware[0] = root;
 			try {
 				di.setOomAware(oomAware = root);
@@ -139,6 +136,8 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	}
 
 	/**
+	 * Reads NBT Compound entries without recursion
+	 *
 	 * @return whether the root has been reached or a ListOfListsTarget target is on top of the stack
 	 */
 	@Nullable
@@ -160,18 +159,20 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 						throw new NbtParseException.IncorrectSchema();
 					}
 
-					try {
-						nestedTarget.pop(); // pop self
-					} catch (FixedStack.EmptyStackException ex) {
-						throw new IllegalStateException(ex);
-					}
+					if (targetAndSchema.advanceIsFinished()) {
+						try {
+							nestedTarget.pop(); // pop self
+						} catch (FixedStack.EmptyStackException ex) {
+							throw new IllegalStateException(ex);
+						}
 
-					ParsingTarget parent = nestedTarget.tryPeek();
-					if (parent == null) return null;
-					if (parent instanceof ListOfListsTarget) return (ListOfListsTarget) parent;
-					CompoundTarget parentAsCompound = (CompoundTarget) parent;
-					target = parentAsCompound.compound;
-					schema = parentAsCompound.schema;
+						ParsingTarget parent = nestedTarget.tryPeek();
+						if (parent == null) return null;
+						if (parent instanceof ListOfListsTarget) return (ListOfListsTarget) parent;
+						targetAndSchema = (CompoundTarget) parent;
+					}
+					target = targetAndSchema.compound;
+					schema = targetAndSchema.schema;
 					continue newTarget;
 				}
 				String key = readString();
@@ -251,9 +252,9 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 						target.collisionUnsafeAddList(key, list);
 						if (stackSize != nestedTarget.getSize()) {
 							try {
-								CompoundTarget newTarget = (CompoundTarget) nestedTarget.peek();
-								target = newTarget.compound;
-								schema = newTarget.schema;
+								targetAndSchema = (CompoundTarget) nestedTarget.peek();
+								target = targetAndSchema.compound;
+								schema = targetAndSchema.schema;
 							} catch (FixedStack.EmptyStackException ex) {
 								throw new IllegalStateException(ex);
 							}
@@ -267,7 +268,8 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 						ValuelessNbtCompound newDepth = newSchema instanceof SaveCompoundSchema ?
 							((SaveCompoundSchema) newSchema).compound :
 							ValuelessNbtCompound.create(oomAware);
-						nestedTarget.push(OomAware.tryRun(oomAware, () -> new CompoundTarget(newDepth, newSchema)));
+						nestedTarget.push(targetAndSchema = OomAware.tryRun(oomAware, () ->
+							new CompoundTarget(newDepth, newSchema)));
 						target.collisionUnsafeAddCompound(key, newDepth);
 						target = newDepth;
 						schema = newSchema;
@@ -280,6 +282,9 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		}
 	}
 
+	/**
+	 * Reads NBT List entries without recursion
+	 */
 	@NotNull
 	private CompoundTarget readListEntries(@NotNull ListOfListsTarget target)
 		throws ReadException, EofException, OomException, NbtParseException, FixedStack.FullStackException {
@@ -362,12 +367,11 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			);
 			result = NbtList.EMPTY_LIST;
 		}
-		nestedTarget.pushAll(readGenericArray(
-			len, CompoundTarget[]::new, i -> {
-				NbtCompoundSchema compoundSchema = nonNullSchema(schema.schemaForCompound(i));
-				return OomAware.tryRun(oomAware, () -> new CompoundTarget(valuelessCompounds[i], compoundSchema));
-			}
-		));
+		ListOfCompoundsTarget newTarget =
+			OomAware.tryRun(oomAware, () -> new ListOfCompoundsTarget(valuelessCompounds, schema));
+		nestedTarget.push(newTarget);
+		if (newTarget.advanceIsFinished()) throw new AssertionError(
+			"Passed len was 0 (sanity check: actual len is = " + len + ")");
 		return result;
 	}
 
@@ -671,13 +675,41 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	private interface ParsingTarget {
 	}
 
-	private static final class CompoundTarget implements ParsingTarget {
-		private final @NotNull NbtCompoundSchema schema;
-		private final @NotNull ValuelessNbtCompound compound;
+	private static class CompoundTarget implements ParsingTarget {
+		private @NotNull NbtCompoundSchema schema;
+		private @NotNull ValuelessNbtCompound compound;
 
 		private CompoundTarget(@NotNull ValuelessNbtCompound compound, @NotNull NbtCompoundSchema schema) {
 			this.schema = schema;
 			this.compound = compound;
+		}
+
+		public boolean advanceIsFinished() throws OomException, NbtParseException.IncorrectSchema {
+			return true;
+		}
+	}
+
+	private static final class ListOfCompoundsTarget extends CompoundTarget {
+		private final @NotNull NbtListOfCompoundsSchema parentSchema;
+		private final @NotNull ValuelessNbtCompound @NotNull [] compounds;
+		private int i = 0;
+
+		@SuppressWarnings("DataFlowIssue")
+		private ListOfCompoundsTarget(
+			@NotNull ValuelessNbtCompound @NotNull [] compounds, @NotNull NbtListOfCompoundsSchema parentSchema) {
+			super(null, null);
+			this.parentSchema = parentSchema;
+			this.compounds = compounds;
+		}
+
+		@Override
+		public boolean advanceIsFinished() throws OomException, NbtParseException.IncorrectSchema {
+			int i = this.i++;
+			ValuelessNbtCompound[] compounds = this.compounds;
+			if (i >= compounds.length) return true;
+			super.schema = nonNullSchema(parentSchema.schemaForCompound(i));
+			super.compound = compounds[i];
+			return false;
 		}
 	}
 

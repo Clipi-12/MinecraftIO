@@ -42,7 +42,7 @@ public class Entity implements NestedToString {
 	@Override
 	@NotNull
 	public String toString() {
-		return super.toString();
+		return nestedToString();
 	}
 
 	@Override
