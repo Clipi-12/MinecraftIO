@@ -26,6 +26,7 @@ import me.clipi.io.generic_mc.parse.NbtBlockEntity;
 import me.clipi.io.generic_mc.parse.NbtEntity;
 import me.clipi.io.nbt.NbtCompound;
 import me.clipi.io.nbt.SaveCompoundSchema;
+import me.clipi.io.nbt.schema.DelegatedCompoundSchema;
 import me.clipi.io.nbt.schema.DenyAllCompoundSchema;
 import me.clipi.io.nbt.schema.NbtCompoundSchema;
 import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema;
@@ -96,8 +97,8 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 	private int dataVersion;
 	private @Range(from = 0, to = (1 << 16) - 1) int xLen, yLen, zLen;
-	private @Nullable BlocksSchema blocks;
-	private @Nullable BiomesSchema biomes;
+	private @Nullable DelegatedCompoundSchema<BlocksSchema> blocks;
+	private @Nullable DelegatedCompoundSchema<BiomesSchema> biomes;
 	private @Nullable SchemaList<EntitySchema<ResourceType>> entities;
 
 	SpongeV3Schematic<BlockType, BiomeType, EntityType> schematic;
@@ -118,13 +119,27 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 			EntitySchema<ResourceType>[] schemas = this.entities.schemas;
 			int i = schemas.length;
 			entities = (EntityType[]) Array.newInstance(entityClass, i);
-			while (--i > 0)
+			while (--i >= 0)
 				entities[i] = tryParseEntity.apply(schemas[i].into());
 		}
+		@NotNull BlockType[] @NotNull [] @NotNull [] blocks;
+		if (this.blocks == null) {
+			blocks = null;
+		} else if (this.blocks.computeSchema() == null) {
+			return true;
+		} else {
+			blocks = this.blocks.computeSchema().yzxElement;
+		}
+		@NotNull BiomeType[] @NotNull [] @NotNull [] biomes;
+		if (this.biomes == null) {
+			biomes = null;
+		} else if (this.biomes.computeSchema() == null) {
+			return true;
+		} else {
+			biomes = this.biomes.computeSchema().yzxElement;
+		}
 		schematic = oomAware.tryRun(() -> new SpongeV3Schematic<>(dataVersion, xOff, yOff, zOff, xLen, yLen, zLen,
-																  blocks == null ? null : blocks.yzxElement,
-																  biomes == null ? null : biomes.yzxElement,
-																  entities));
+																  blocks, biomes, entities));
 		return false;
 	}
 
@@ -181,11 +196,17 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 			case "Metadata":
 				return NbtCompoundSchema.ALWAYS;
 			case "Blocks":
-				if (!(hasXLen & hasYLen & hasZLen)) return null; // TODO Don't crash if the entries are not ordered
-				return blocks = new BlocksSchema(xLen, yLen, zLen);
+				return (blocks = hasXLen & hasYLen & hasZLen ?
+					new DelegatedCompoundSchema.EagerEvaluation<>(new BlocksSchema(xLen, yLen, zLen)) :
+					new DelegatedCompoundSchema.LazyEvaluation<>(oomAware, () ->
+						hasXLen & hasYLen & hasZLen ? new BlocksSchema(xLen, yLen, zLen) : null)
+				).rawSchema();
 			case "Biomes":
-				if (!(hasXLen & hasYLen & hasZLen)) return null; // TODO Don't crash if the entries are not ordered
-				return biomes = new BiomesSchema(xLen, yLen, zLen);
+				return (biomes = hasXLen & hasYLen & hasZLen ?
+					new DelegatedCompoundSchema.EagerEvaluation<>(new BiomesSchema(xLen, yLen, zLen)) :
+					new DelegatedCompoundSchema.LazyEvaluation<>(oomAware, () ->
+						hasXLen & hasYLen & hasZLen ? new BiomesSchema(xLen, yLen, zLen) : null)
+				).rawSchema();
 			default:
 				return null;
 		}
@@ -217,8 +238,8 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 	private static class EntitySchema<ResourceType> extends IdAndDataSchema<ResourceType> {
 		private double x, y, z;
 
-		public EntitySchema(@NotNull OomAware oomAware,
-							@NotNull Function<@NotNull String, @Nullable ResourceType> tryParse) {
+		public EntitySchema(
+			@NotNull OomAware oomAware, @NotNull Function<@NotNull String, @Nullable ResourceType> tryParse) {
 			super(oomAware, tryParse);
 		}
 
