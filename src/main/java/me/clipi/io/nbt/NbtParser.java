@@ -135,8 +135,6 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			if (nextTarget == null) return;
 			// TODO Create tests for
 			//  list of list of primitives/objects
-			//  list of list of lists
-			//  list of list of compounds
 			target = readListEntries(nextTarget);
 		}
 	}
@@ -356,9 +354,9 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		throws ReadException, OomException, EofException, FixedStack.FullStackException, NbtParseException {
 		NbtList result;
 		ValuelessNbtCompound[] valuelessCompounds;
-		if (schema instanceof SaveCompoundSchema.ListOfObjects) {
+		if (schema instanceof SaveCompoundSchema.ListOfCompounds) {
 			@SuppressWarnings("unchecked")
-			NbtCompound[] compounds = ((SaveCompoundSchema.ListOfObjects<NbtCompound>) schema).array;
+			NbtCompound[] compounds = ((SaveCompoundSchema.ListOfCompounds) schema).array;
 			valuelessCompounds = compounds;
 			result = NbtList.emptyUnsafeCreate(oomAware, compounds);
 		} else {

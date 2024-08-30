@@ -35,7 +35,7 @@ import java.util.Arrays;
 import static me.clipi.io.TestUtils.getString;
 
 /**
- * NBT Test files
+ * NBT test files located in <pre>nbt/all-types.nbt.gz</pre> and <pre>nbt/bigtest.nbt.gz</pre> are
  * <a href="https://github.com/EngineHub/lin-bus/tree/2ecff1b22e7eaca6b7410cc13f1c0d7ddd39e3c3/shared-test-resources">
  * provided by EngineHub</a>
  */

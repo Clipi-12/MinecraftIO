@@ -35,6 +35,11 @@ tasks.compileTestJava {
     javaCompiler = javaToolchains.compilerFor {
         languageVersion = JavaLanguageVersion.of(22)
     }
+    options.run {
+        compilerArgs.add("-Xlint:all,-processing")
+        compilerArgs.add("-Werror")
+        encoding = "UTF-8"
+    }
 }
 
 tasks.test {
