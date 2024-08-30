@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.IntConsumer;
 
 import static me.clipi.io.nbt.NbtTest.getParser;
@@ -43,7 +44,9 @@ public class NestedListsTest {
 			""");
 
 		appendList4Deep(result);
-		result.append("\t}\n}");
+		result.append(",\n");
+		appendLCLC(result);
+		result.append("\n\t}\n}");
 		nestedLists = result.toString();
 	}
 
@@ -103,7 +106,145 @@ public class NestedListsTest {
 			}
 			endIterOfList.accept(0, i == 3);
 		}
-		result.append("\t\t}\n");
+		result.append("\t\t}");
+	}
+
+	private static void appendLCLC(StringBuilder result) {
+		BiFunction<Integer, Integer, String> innerCompound = (compound, startingIndex) -> {
+			StringBuilder str = new StringBuilder();
+			for (int i = startingIndex; i == startingIndex | (i & 3) != 0; ++i) {
+				str.append(
+					// \t to prevent auto-formatting from messing with the string
+					"""
+					\t					key #%d of compound #%d: NbtList {
+												component type: NbtType List,
+												size: int 2,
+												array: NbtList[] [
+													{
+														component type: NbtType Compound,
+														size: int 2,
+														array: NbtCompound[] [
+															{
+																k1: int %d,
+																k2: int %d
+															},
+															{
+																k3: int %d,
+																k4: int %d
+															}
+														]
+													},
+													{
+														component type: NbtType Int,
+														size: int 2,
+														array: int[] [
+															%d,
+															%d
+														]
+													}
+												]
+											}""".formatted(i, compound,
+														   i << 1, i << 1 | 1,
+														   31 - (i << 1), 30 - (i << 1),
+														   i, 15 - i));
+				if ((i & 3) != 3)
+					str.append(",\n");
+			}
+			return str.toString();
+		};
+		result.append(
+			"""
+					compound of lists of compounds of [[4 keys, 4 keys, 4 keys, 4 keys], [index, 15-index]]: NbtCompound {
+						compound #0: NbtList {
+							component type: NbtType Compound,
+							size: int 4,
+							array: NbtCompound[] [
+								{
+			%s
+								},
+								{
+			%s
+								},
+								{
+			%s
+								},
+								{
+			%s
+								}
+							]
+						},
+						compound #1: NbtList {
+							component type: NbtType Compound,
+							size: int 4,
+							array: NbtCompound[] [
+								{
+			%s
+								},
+								{
+			%s
+								},
+								{
+			%s
+								},
+								{
+			%s
+								}
+							]
+						},
+						compound #2: NbtList {
+							component type: NbtType Compound,
+							size: int 4,
+							array: NbtCompound[] [
+								{
+			%s
+								},
+								{
+			%s
+								},
+								{
+			%s
+								},
+								{
+			%s
+								}
+							]
+						},
+						compound #3: NbtList {
+							component type: NbtType Compound,
+							size: int 4,
+							array: NbtCompound[] [
+								{
+			%s
+								},
+								{
+			%s
+								},
+								{
+			%s
+								},
+								{
+			%s
+								}
+							]
+						}
+					}""".formatted(
+				innerCompound.apply(0, 0),
+				innerCompound.apply(0, 4),
+				innerCompound.apply(0, 8),
+				innerCompound.apply(0, 12),
+				innerCompound.apply(1, 0),
+				innerCompound.apply(1, 4),
+				innerCompound.apply(1, 8),
+				innerCompound.apply(1, 12),
+				innerCompound.apply(2, 0),
+				innerCompound.apply(2, 4),
+				innerCompound.apply(2, 8),
+				innerCompound.apply(2, 12),
+				innerCompound.apply(3, 0),
+				innerCompound.apply(3, 4),
+				innerCompound.apply(3, 8),
+				innerCompound.apply(3, 12)
+			));
 	}
 
 	@Test
