@@ -29,9 +29,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
-import java.lang.reflect.Array;
-
-public final class SaveCompoundSchema extends AllowAllCompoundSchema {
+public class SaveCompoundSchema extends AllowAllCompoundSchema {
 	static CheckedFunction<@Nullable OomAware, @NotNull NbtCompound, OomException> nbtCompoundConstructor;
 
 	static {
@@ -56,194 +54,37 @@ public final class SaveCompoundSchema extends AllowAllCompoundSchema {
 		compound.toString(nester);
 	}
 
-	// <editor-fold defaultstate="collapsed" desc="list of objects">
 	@Override
-	@NotNull
-	public NbtListOfByteArraysSchema schemaForListOfByteArrays(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new byte[length][]));
-	}
-
-	@Override
-	@NotNull
-	public NbtListOfIntArraysSchema schemaForListOfIntArrays(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new int[length][]));
-	}
-
-	@Override
-	@NotNull
-	public NbtListOfLongArraysSchema schemaForListOfLongArrays(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new long[length][]));
-	}
-
-	@Override
-	@NotNull
-	public NbtListOfStringsSchema schemaForListOfStrings(
-		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new String[length]));
-	}
-
-	@Override
-	@NotNull
+	@Nullable
 	public NbtListOfListsSchema schemaForListOfLists(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new NbtList[length]));
+		return oomAware.tryRun(() -> new ListOfObjects(oomAware));
 	}
 
 	@Override
-	@NotNull
+	@Nullable
 	public NbtListOfCompoundsSchema schemaForListOfCompounds(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
 		return oomAware.tryRun(() -> new ListOfCompounds(oomAware, new NbtCompound[length]));
 	}
-	// </editor-fold>
 
 	@Override
-	@NotNull
+	@Nullable
 	public NbtCompoundSchema schemaForCompound(@NotNull String key) throws OomException {
 		return SaveCompoundSchema.create(oomAware);
 	}
 
-	static final class ListOfCompounds implements NbtListOfCompoundsSchema {
-		private final @NotNull OomAware oomAware;
-		final @NotNull NbtCompound @NotNull [] array;
-
-		private ListOfCompounds(@NotNull OomAware oomAware, @NotNull NbtCompound @NotNull [] array) {
-			this.oomAware = oomAware;
-			this.array = array;
-		}
-
-		@Override
-		@NotNull
-		public NbtCompoundSchema schemaForCompound(int index) throws OomException {
-			SaveCompoundSchema schema = SaveCompoundSchema.create(oomAware);
-			array[index] = schema.compound;
-			return schema;
-		}
-	}
-
-	private static final class ListOfObjects<T> extends AllowAllListOfListsSchema
-		implements NbtListOfByteArraysSchema, NbtListOfIntArraysSchema, NbtListOfLongArraysSchema,
-				   NbtListOfStringsSchema {
+	private static final class ListOfObjects extends AllowAllListOfListsSchema {
 		private final @NotNull OomAware oomAware;
 
-		private ListOfObjects(@NotNull OomAware oomAware, @NotNull T @NotNull [] array) {
-			assert Array.getLength(array) > 0;
+		private ListOfObjects(@NotNull OomAware oomAware) {
 			this.oomAware = oomAware;
-		}
-
-		// <editor-fold defaultstate="collapsed" desc="objects with length (ignore length)">
-		@Override
-		public boolean deniesByteArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesIntArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesLongArray(int index, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesString(int index, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) {
-			return false;
-		}
-		// </editor-fold>
-
-		// <editor-fold defaultstate="collapsed" desc="objects with length">
-		@Override
-		public boolean deniesByteArray(int index, byte @NotNull [] value) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesIntArray(int index, int @NotNull [] value) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesLongArray(int index, long @NotNull [] value) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesString(int index, @NotNull String value) {
-			return false;
-		}
-		// </editor-fold>
-
-		@Override
-		public boolean deniesEmptyList(int index) {
-			return false;
-		}
-
-		// <editor-fold defaultstate="collapsed" desc="list of objects with length">
-		@Override
-		public boolean deniesByteList(int index, byte @NotNull [] value) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesShortList(int index, short @NotNull [] value) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesIntList(int index, int @NotNull [] value) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesLongList(int index, long @NotNull [] value) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesFloatList(int index, float @NotNull [] value) {
-			return false;
-		}
-
-		@Override
-		public boolean deniesDoubleList(int index, double @NotNull [] value) {
-			return false;
-		}
-		// </editor-fold>
-
-		// <editor-fold defaultstate="collapsed" desc="list of lists">
-		@NotNull
-		public NbtListOfByteArraysSchema schemaForListOfByteArrays(
-			int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-			return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new byte[length][]));
-		}
-
-		@NotNull
-		public NbtListOfIntArraysSchema schemaForListOfIntArrays(
-			int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-			return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new int[length][]));
-		}
-
-		@NotNull
-		public NbtListOfLongArraysSchema schemaForListOfLongArrays(
-			int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-			return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new long[length][]));
-		}
-
-		@NotNull
-		public NbtListOfStringsSchema schemaForListOfStrings(
-			int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-			return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new String[length]));
 		}
 
 		@NotNull
 		public NbtListOfListsSchema schemaForListOfLists(
-			int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-			return oomAware.tryRun(() -> new ListOfObjects<>(oomAware, new NbtList[length]));
+			int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+			return this;
 		}
 
 		@NotNull
@@ -251,6 +92,48 @@ public final class SaveCompoundSchema extends AllowAllCompoundSchema {
 			int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
 			return oomAware.tryRun(() -> new ListOfCompounds(oomAware, new NbtCompound[length]));
 		}
-		// </editor-fold>
+	}
+
+	public static class ListOfCompounds implements NbtListOfCompoundsSchema {
+		protected final @NotNull OomAware oomAware;
+		final @NotNull NbtCompound @NotNull [] array;
+
+		private final int lastIdx;
+		private boolean isAvailableToParent;
+
+		private ListOfCompounds(@NotNull OomAware oomAware, @NotNull NbtCompound @NotNull [] array) {
+			this.oomAware = oomAware;
+			this.array = array;
+			lastIdx = array.length - 1;
+		}
+
+		private static @NotNull NbtCompound @NotNull [] createArrayAssertLen(@NotNull OomAware oomAware, int length) throws OomException {
+			if (length <= 0 | length > GrowableArray.MAX_ARRAY_SIZE)
+				throw new IllegalArgumentException("Illegal NBT List length: " + length);
+			return oomAware.tryRun(() -> new NbtCompound[length]);
+		}
+
+		protected ListOfCompounds(
+			@NotNull OomAware oomAware, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
+			this(oomAware, createArrayAssertLen(oomAware, length));
+		}
+
+		@NotNull
+		protected SaveCompoundSchema createNewSchema() throws OomException {
+			return SaveCompoundSchema.create(oomAware);
+		}
+
+		protected @NotNull NbtCompound @Nullable [] getAsArrayIfCompletelyParsed() {
+			return isAvailableToParent ? array : null;
+		}
+
+		@Override
+		@NotNull
+		public final SaveCompoundSchema schemaForCompound(int index) throws OomException {
+			isAvailableToParent = index == lastIdx;
+			SaveCompoundSchema schema = createNewSchema();
+			array[index] = schema.compound;
+			return schema;
+		}
 	}
 }

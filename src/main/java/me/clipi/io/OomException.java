@@ -43,6 +43,7 @@ public final class OomException extends Exception {
 			return tryRun(this, memoryExpensiveComputation);
 		}
 
+		@Nullable
 		default <R> R tryRunOrNull(@NotNull CheckedSupplier<@NotNull R, OomException> memoryExpensiveComputation) {
 			return tryRunOrNull(this, memoryExpensiveComputation);
 		}

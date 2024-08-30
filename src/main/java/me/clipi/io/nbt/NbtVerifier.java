@@ -38,6 +38,15 @@ public class NbtVerifier {
 
 	public static boolean isDeniedBySchema(
 		@NotNull OomAware oomAware, @NotNull NbtCompound compound, @NotNull NbtCompoundSchema schema) throws OomException {
+		if (schema instanceof SaveCompoundSchema) {
+			try {
+				compound.copyTo(((SaveCompoundSchema) schema).compound);
+			} catch (NbtParseException.DuplicatedKey ex) {
+				// TODO NbtCompound.copyTo() failed
+				return true;
+			}
+		}
+
 		FixedStack<VerifyingTarget> nestedTarget = oomAware.tryRun(
 			() -> new FixedStack<>(VerifyingTarget.class, NbtParser.NESTED_MAX_DEPTH));
 		CompoundTarget target = oomAware.tryRun(() -> new CompoundTarget(compound, schema));

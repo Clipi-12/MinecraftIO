@@ -30,6 +30,8 @@ import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.nbt.schema.*;
 import me.clipi.io.util.FixedStack;
 import me.clipi.io.util.GrowableArray;
+import me.clipi.io.util.function.CheckedConsumer;
+import me.clipi.io.util.function.CheckedRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -79,7 +81,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	public NbtRoot parseRoot() throws ReadException, OomException, NbtParseException {
 		AnyRoot anyRoot = new AnyRoot();
 		NbtCompound rootValue = parseRoot(anyRoot).compound;
-		return new NbtRoot(anyRoot.rootName, rootValue);
+		return rootValue.tryRun(() -> new NbtRoot(anyRoot.rootName, rootValue));
 	}
 
 	@NotNull
@@ -235,16 +237,9 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 						target.collisionUnsafeAddString(key, readString(schema, key));
 						break;
 					case NbtType.tagList: {
-						NbtList list = readListValue(key, schema);
-						if (list == null) {
-							try {
-								return (ListOfListsTarget) nestedTarget.peek();
-							} catch (FixedStack.EmptyStackException ex) {
-								throw new IllegalStateException(ex);
-							}
-						}
-						target.collisionUnsafeAddList(key, list);
-						if (stackSize != nestedTarget.getSize()) {
+						ValuelessNbtCompound finalTarget = target;
+						if (readListValue(key, schema, list -> finalTarget.collisionUnsafeAddList(key, list))) {
+							if (stackSize == nestedTarget.getSize()) break;
 							try {
 								targetAndSchema = (CompoundTarget) nestedTarget.peek();
 								target = targetAndSchema.compound;
@@ -253,8 +248,13 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 								throw new IllegalStateException(ex);
 							}
 							continue newTarget;
+						} else {
+							try {
+								return (ListOfListsTarget) nestedTarget.peek();
+							} catch (FixedStack.EmptyStackException ex) {
+								throw new IllegalStateException(ex);
+							}
 						}
-						break;
 					}
 					case NbtType.tagCompound: {
 						NbtCompoundSchema newSchema = nonNullSchema(schema.schemaForCompound(key));
@@ -309,26 +309,15 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 					}
 					assert target.key == null;
 
-					target = (ListOfListsTarget) parent;
+					ListOfListsTarget parentAsList = (ListOfListsTarget) parent;
+					parentAsList.array[parentAsList.savedIndex - 1] = target.result;
+					target = parentAsList;
 					continue newTarget;
 				}
 
-				NbtList list = readListValue(i, schema);
-				if (list == null) {
-					ListOfListsTarget child;
-					try {
-						child = (ListOfListsTarget) nestedTarget.peek();
-					} catch (FixedStack.EmptyStackException ex) {
-						throw new IllegalStateException(ex);
-					}
-
-					array[i++] = child.result;
-					target.savedIndex = i;
-
-					target = child;
-					continue newTarget;
-				} else {
-					array[i++] = list;
+				int finalI = i;
+				++i;
+				if (readListValue(i, schema, list -> array[finalI] = list)) {
 					if (stackSize != nestedTarget.getSize()) {
 						target.savedIndex = i;
 						try {
@@ -337,6 +326,17 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 							throw new IllegalStateException(ex);
 						}
 					}
+				} else {
+					ListOfListsTarget child;
+					try {
+						child = (ListOfListsTarget) nestedTarget.peek();
+					} catch (FixedStack.EmptyStackException ex) {
+						throw new IllegalStateException(ex);
+					}
+
+					target.savedIndex = i;
+					target = child;
+					continue newTarget;
 				}
 			}
 		}
@@ -346,16 +346,16 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	 * An array of {@link ValuelessNbtCompound} will be created, and each of those will be added to the top of the
 	 * stack as {@link CompoundTarget}s, so that they can be parsed.
 	 * <p>If the corresponding {@link NbtListOfCompoundsSchema} is an instance of
-	 * {@link SaveCompoundSchema.ListOfObjects}, the mentioned {@link ValuelessNbtCompound}s will be
-	 * {@link NbtCompound}s, and an {@link NbtList} of them will be returned. Otherwise, an empty list will be
-	 * returned.
+	 * {@link SaveCompoundSchema.ListOfCompounds}, the mentioned {@link ValuelessNbtCompound}s will be
+	 * {@link NbtCompound}s, and a {@link NbtList} of them will be handled when all finish parsing. Otherwise, an
+	 * empty list will be handled when all have finished parsing.
 	 */
-	private NbtList readListOfCompoundsValue(@NotNull NbtListOfCompoundsSchema schema, int len)
+	private void readListOfCompoundsValue(@NotNull NbtListOfCompoundsSchema schema, int len,
+										  @NotNull CheckedConsumer<NbtList, OomException> onFinish)
 		throws ReadException, OomException, EofException, FixedStack.FullStackException, NbtParseException {
 		NbtList result;
 		ValuelessNbtCompound[] valuelessCompounds;
 		if (schema instanceof SaveCompoundSchema.ListOfCompounds) {
-			@SuppressWarnings("unchecked")
 			NbtCompound[] compounds = ((SaveCompoundSchema.ListOfCompounds) schema).array;
 			valuelessCompounds = compounds;
 			result = NbtList.emptyUnsafeCreate(oomAware, compounds);
@@ -367,33 +367,35 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			result = NbtList.EMPTY_LIST;
 		}
 		ListOfCompoundsTarget newTarget =
-			OomAware.tryRun(oomAware, () -> new ListOfCompoundsTarget(valuelessCompounds, schema));
+			OomAware.tryRun(oomAware, () -> new ListOfCompoundsTarget(valuelessCompounds, schema,
+																	  () -> onFinish.accept(result)));
 		nestedTarget.push(newTarget);
 		if (newTarget.advanceIsFinished()) throw new AssertionError(
 			"Passed len was 0 (sanity check: actual len is = " + len + ")");
-		return result;
 	}
 
 	/**
-	 * Reads a NBT List value if it is not nested (List of Lists or List of Maps).
-	 * <p>If the parsed NBT List is a List of Lists, it will return null, and a {@link ListOfListsTarget} target
-	 * will be added to the top of the stack.
+	 * Reads a NBT List value if it is not nested (List of Lists or List of Maps) and returns {@code true}.
+	 * <p>If the parsed NBT List is a List of Lists, it will return {@code false}, and a {@link ListOfListsTarget}
+	 * target will be added to the top of the stack.
 	 * <p>If the parsed NBT List is a List of Maps, an array of {@link ValuelessNbtCompound} will be created, and
 	 * each of those will be added to the top of the stack as {@link CompoundTarget}s, so that they can be parsed.
 	 * If the corresponding {@link NbtListOfCompoundsSchema} is an instance of
-	 * {@link SaveCompoundSchema.ListOfObjects}, the mentioned {@link ValuelessNbtCompound}s will be
-	 * {@link NbtCompound}s, and an {@link NbtList} of them will be returned. Otherwise, an empty list will be
-	 * returned.
+	 * {@link SaveCompoundSchema.ListOfCompounds}, the mentioned {@link ValuelessNbtCompound}s will be
+	 * {@link NbtCompound}s, and a {@link NbtList} of them will be handled when all finish parsing. Otherwise, an
+	 * empty list will be handled when all have finished parsing.
 	 */
-	@Nullable
-	private NbtList readListValue(int index, @NotNull NbtListOfListsSchema parentSchema)
+	private boolean readListValue(int index, @NotNull NbtListOfListsSchema parentSchema,
+								  @NotNull CheckedConsumer<@NotNull NbtList, OomException> handleList)
 		throws ReadException, EofException, OomException, NbtParseException, FixedStack.FullStackException {
 		int type = di.expectByte();
 		int len = readArrayLen();
 		if (len == 0) {
 			if (parentSchema.deniesEmptyList(index)) throw new NbtParseException.IncorrectSchema();
-			return NbtList.EMPTY_LIST;
+			handleList.accept(NbtList.EMPTY_LIST);
+			return true;
 		}
+		NbtList listToBeHandled;
 		switch (type) {
 			case NbtType.tagEnd:
 				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
@@ -401,89 +403,105 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				if (parentSchema.deniesByteList(index, len)) throw new NbtParseException.IncorrectSchema();
 				byte[] list = di.expectByteArray(len);
 				if (parentSchema.deniesByteList(index, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagShort: {
 				if (parentSchema.deniesShortList(index, len)) throw new NbtParseException.IncorrectSchema();
 				short[] list = di.expectShortArray(len);
 				if (parentSchema.deniesShortList(index, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagInt: {
 				if (parentSchema.deniesIntList(index, len)) throw new NbtParseException.IncorrectSchema();
 				int[] list = di.expectIntArray(len);
 				if (parentSchema.deniesIntList(index, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagLong: {
 				if (parentSchema.deniesLongList(index, len)) throw new NbtParseException.IncorrectSchema();
 				long[] list = di.expectLongArray(len);
 				if (parentSchema.deniesLongList(index, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagFloat: {
 				if (parentSchema.deniesFloatList(index, len)) throw new NbtParseException.IncorrectSchema();
 				float[] list = di.expectFloatArray(len);
 				if (parentSchema.deniesFloatList(index, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagDouble: {
 				if (parentSchema.deniesDoubleList(index, len)) throw new NbtParseException.IncorrectSchema();
 				double[] list = di.expectDoubleArray(len);
 				if (parentSchema.deniesDoubleList(index, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagByteArray: {
 				NbtListOfByteArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfByteArrays(index, len));
 				byte[][] list = readGenericArray(len, byte[][]::new, i -> readByteArray(schema, i));
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagIntArray: {
 				NbtListOfIntArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfIntArrays(index, len));
 				int[][] list = readGenericArray(len, int[][]::new, i -> readIntArray(schema, i));
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagLongArray: {
 				NbtListOfLongArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfLongArrays(index, len));
 				long[][] list = readGenericArray(len, long[][]::new, i -> readLongArray(schema, i));
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagString: {
 				NbtListOfStringsSchema schema = nonNullSchema(parentSchema.schemaForListOfStrings(index, len));
 				String[] list = readGenericArray(len, String[]::new, i -> readString(schema, i));
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagList:
 				nestedTarget.push(ListOfListsTarget.create(oomAware, null, len,
 														   nonNullSchema(parentSchema.schemaForListOfLists(index, len))));
-				return null;
+				return false;
 			case NbtType.tagCompound:
-				return readListOfCompoundsValue(nonNullSchema(parentSchema.schemaForListOfCompounds(index, len)), len);
+				readListOfCompoundsValue(nonNullSchema(parentSchema.schemaForListOfCompounds(index, len)),
+										 len, handleList);
+				return true;
 			default:
 				throw new NbtParseException.UnknownTagType(type);
 		}
+		handleList.accept(listToBeHandled);
+		return true;
 	}
 
 	/**
-	 * Reads a NBT List value if it is not nested (List of Lists or List of Maps).
-	 * <p>If the parsed NBT List is a List of Lists, it will return null, and a {@link ListOfListsTarget} target
-	 * will be added to the top of the stack.
+	 * Reads a NBT List value if it is not nested (List of Lists or List of Maps) and returns {@code true}.
+	 * <p>If the parsed NBT List is a List of Lists, it will return {@code false}, and a {@link ListOfListsTarget}
+	 * target will be added to the top of the stack.
 	 * <p>If the parsed NBT List is a List of Maps, an array of {@link ValuelessNbtCompound} will be created, and
 	 * each of those will be added to the top of the stack as {@link CompoundTarget}s, so that they can be parsed.
 	 * If the corresponding {@link NbtListOfCompoundsSchema} is an instance of
-	 * {@link SaveCompoundSchema.ListOfObjects}, the mentioned {@link ValuelessNbtCompound}s will be
-	 * {@link NbtCompound}s, and an {@link NbtList} of them will be returned. Otherwise, an empty list will be
-	 * returned.
+	 * {@link SaveCompoundSchema.ListOfCompounds}, the mentioned {@link ValuelessNbtCompound}s will be
+	 * {@link NbtCompound}s, and a {@link NbtList} of them will be handled when all finish parsing. Otherwise, an
+	 * empty list will be handled when all have finished parsing.
 	 */
-	@Nullable
-	private NbtList readListValue(@NotNull String key, @NotNull NbtCompoundSchema parentSchema)
+	private boolean readListValue(@NotNull String key, @NotNull NbtCompoundSchema parentSchema,
+								  @NotNull CheckedConsumer<@NotNull NbtList, OomException> handleList)
 		throws ReadException, EofException, OomException, NbtParseException, FixedStack.FullStackException {
 		int type = di.expectByte();
 		int len = readArrayLen();
 		if (len == 0) {
 			if (parentSchema.deniesEmptyList(key)) throw new NbtParseException.IncorrectSchema();
-			return NbtList.EMPTY_LIST;
+			handleList.accept(NbtList.EMPTY_LIST);
+			return true;
 		}
+		NbtList listToBeHandled;
 		switch (type) {
 			case NbtType.tagEnd:
 				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
@@ -491,67 +509,81 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				if (parentSchema.deniesByteList(key, len)) throw new NbtParseException.IncorrectSchema();
 				byte[] list = di.expectByteArray(len);
 				if (parentSchema.deniesByteList(key, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagShort: {
 				if (parentSchema.deniesShortList(key, len)) throw new NbtParseException.IncorrectSchema();
 				short[] list = di.expectShortArray(len);
 				if (parentSchema.deniesShortList(key, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagInt: {
 				if (parentSchema.deniesIntList(key, len)) throw new NbtParseException.IncorrectSchema();
 				int[] list = di.expectIntArray(len);
 				if (parentSchema.deniesIntList(key, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagLong: {
 				if (parentSchema.deniesLongList(key, len)) throw new NbtParseException.IncorrectSchema();
 				long[] list = di.expectLongArray(len);
 				if (parentSchema.deniesLongList(key, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagFloat: {
 				if (parentSchema.deniesFloatList(key, len)) throw new NbtParseException.IncorrectSchema();
 				float[] list = di.expectFloatArray(len);
 				if (parentSchema.deniesFloatList(key, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagDouble: {
 				if (parentSchema.deniesDoubleList(key, len)) throw new NbtParseException.IncorrectSchema();
 				double[] list = di.expectDoubleArray(len);
 				if (parentSchema.deniesDoubleList(key, list)) throw new NbtParseException.IncorrectSchema();
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagByteArray: {
 				NbtListOfByteArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfByteArrays(key, len));
 				byte[][] list = readGenericArray(len, byte[][]::new, i -> readByteArray(schema, i));
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagIntArray: {
 				NbtListOfIntArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfIntArrays(key, len));
 				int[][] list = readGenericArray(len, int[][]::new, i -> readIntArray(schema, i));
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagLongArray: {
 				NbtListOfLongArraysSchema schema = nonNullSchema(parentSchema.schemaForListOfLongArrays(key, len));
 				long[][] list = readGenericArray(len, long[][]::new, i -> readLongArray(schema, i));
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagString: {
 				NbtListOfStringsSchema schema = nonNullSchema(parentSchema.schemaForListOfStrings(key, len));
 				String[] list = readGenericArray(len, String[]::new, i -> readString(schema, i));
-				return NbtList.emptyUnsafeCreate(oomAware, list);
+				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
+				break;
 			}
 			case NbtType.tagList:
 				nestedTarget.push(ListOfListsTarget.create(oomAware, key, len,
 														   nonNullSchema(parentSchema.schemaForListOfLists(key, len))));
-				return null;
+				return false;
 			case NbtType.tagCompound:
-				return readListOfCompoundsValue(nonNullSchema(parentSchema.schemaForListOfCompounds(key, len)), len);
+				readListOfCompoundsValue(nonNullSchema(parentSchema.schemaForListOfCompounds(key, len)),
+										 len, handleList);
+				return true;
 			default:
 				throw new NbtParseException.UnknownTagType(type);
 		}
+		handleList.accept(listToBeHandled);
+		return true;
 	}
 
 	@NotNull
@@ -691,21 +723,28 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	private static final class ListOfCompoundsTarget extends CompoundTarget {
 		private final @NotNull NbtListOfCompoundsSchema parentSchema;
 		private final @NotNull ValuelessNbtCompound @NotNull [] compounds;
+		private final @NotNull CheckedRunnable<OomException> onFinish;
 		private int i = 0;
 
 		@SuppressWarnings("DataFlowIssue")
 		private ListOfCompoundsTarget(
-			@NotNull ValuelessNbtCompound @NotNull [] compounds, @NotNull NbtListOfCompoundsSchema parentSchema) {
+			@NotNull ValuelessNbtCompound @NotNull [] compounds, @NotNull NbtListOfCompoundsSchema parentSchema,
+			@NotNull CheckedRunnable<OomException> onFinish) {
 			super(null, null);
 			this.parentSchema = parentSchema;
 			this.compounds = compounds;
+			this.onFinish = onFinish;
 		}
 
 		@Override
 		public boolean advanceIsFinished() throws OomException, NbtParseException.IncorrectSchema {
 			int i = this.i++;
 			ValuelessNbtCompound[] compounds = this.compounds;
-			if (i >= compounds.length) return true;
+			if (i == compounds.length) {
+				onFinish.run();
+				return true;
+			}
+			assert i < compounds.length;
 			super.schema = nonNullSchema(parentSchema.schemaForCompound(i));
 			super.compound = compounds[i];
 			return false;
