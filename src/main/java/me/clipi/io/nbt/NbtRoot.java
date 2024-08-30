@@ -23,16 +23,18 @@ package me.clipi.io.nbt;
 import me.clipi.io.util.NestedToString;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Objects;
+
 public final class NbtRoot implements NestedToString {
-	public final String name;
-	public final NbtCompound rootValue;
+	public final @NotNull String name;
+	public final @NotNull NbtCompound rootValue;
 
 	/**
 	 * package-private
 	 */
 	NbtRoot(@NotNull String name, @NotNull NbtCompound rootValue) {
-		this.name = name;
-		this.rootValue = rootValue;
+		this.name = Objects.requireNonNull(name);
+		this.rootValue = Objects.requireNonNull(rootValue);
 	}
 
 	@Override

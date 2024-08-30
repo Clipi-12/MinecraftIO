@@ -20,8 +20,6 @@
 
 package me.clipi.io.nbt;
 
-import me.clipi.io.OomException;
-import me.clipi.io.nbt.exceptions.NbtParseException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -31,6 +29,7 @@ import java.util.function.BiFunction;
 import java.util.function.IntConsumer;
 
 import static me.clipi.io.nbt.NbtTest.getParser;
+import static me.clipi.io.nbt.NbtTest.parseByVerifying;
 
 public class NestedListsTest {
 	private static final String nestedLists;
@@ -248,9 +247,9 @@ public class NestedListsTest {
 	}
 
 	@Test
-	public void testNestedLists() throws IOException, OomException, NbtParseException {
+	public void testNestedLists() throws Throwable {
 		try (NbtParser<IOException> parser = getParser("nbt/nested-lists.nbt.gz")) {
-			Assertions.assertEquals(nestedLists, parser.parseRoot().nestedToString());
+			Assertions.assertEquals(nestedLists, parseByVerifying(parser).nestedToString());
 		}
 	}
 }

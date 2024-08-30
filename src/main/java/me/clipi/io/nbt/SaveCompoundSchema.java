@@ -29,6 +29,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
+import java.util.Objects;
+
 public class SaveCompoundSchema extends AllowAllCompoundSchema {
 	static CheckedFunction<@Nullable OomAware, @NotNull NbtCompound, OomException> nbtCompoundConstructor;
 
@@ -44,8 +46,8 @@ public class SaveCompoundSchema extends AllowAllCompoundSchema {
 		return oomAware.tryRun(() -> new SaveCompoundSchema(oomAware));
 	}
 
-	private SaveCompoundSchema(@NotNull OomAware oomAware) throws OomException {
-		compound = nbtCompoundConstructor.apply(oomAware);
+	protected SaveCompoundSchema(@NotNull OomAware oomAware) throws OomException {
+		compound = nbtCompoundConstructor.apply(Objects.requireNonNull(oomAware));
 		this.oomAware = oomAware;
 	}
 

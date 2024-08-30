@@ -52,25 +52,48 @@ public class NbtTest {
 		)));
 	}
 
+	@NotNull
+	static NbtRoot parseByVerifying(@NotNull NbtParser<IOException> root)
+		throws IOException, OomException, NbtParseException {
+		var res = root.parseRoot((name, oomAware) -> new SaveCompoundSchema(oomAware) {
+			private final @NotNull String rootName = name;
+		});
+		return new NbtRoot(res.rootName, res.compound);
+	}
+
 	@Test
 	public void testAllTypes() throws IOException, OomException, NbtParseException {
+		String expected = getString("nbt/output-all-types.txt");
 		try (NbtParser<IOException> parser = getParser("nbt/all-types.nbt.gz")) {
-			Assertions.assertEquals(getString("nbt/output-all-types.txt"), parser.parseRoot().nestedToString());
+			Assertions.assertEquals(expected, parser.parseRoot().nestedToString());
+		}
+		try (NbtParser<IOException> parser = getParser("nbt/all-types.nbt.gz")) {
+			Assertions.assertEquals(expected, parseByVerifying(parser).nestedToString());
 		}
 	}
 
 	@Test
 	public void testBigTest() throws IOException, OomException, NbtParseException {
+		String expected = getString("nbt/output-bigtest.txt");
 		try (NbtParser<IOException> parser = getParser("nbt/bigtest.nbt.gz")) {
-			Assertions.assertEquals(getString("nbt/output-bigtest.txt"), parser.parseRoot().nestedToString());
+			Assertions.assertEquals(expected, parser.parseRoot().nestedToString());
+		}
+		try (NbtParser<IOException> parser = getParser("nbt/bigtest.nbt.gz")) {
+			Assertions.assertEquals(expected, parseByVerifying(parser).nestedToString());
 		}
 	}
 
 	@Test
-	public void testMultipleInputs() throws IOException, OomException, NbtParseException {
+	public void testMultipleInputs() throws Throwable {
+		String expected1 = getString("nbt/output-all-types.txt");
+		String expected2 = getString("nbt/output-bigtest.txt");
 		try (NbtParser<IOException> parser = getParser("nbt/all-types.nbt.gz", "nbt/bigtest.nbt.gz")) {
-			Assertions.assertEquals(getString("nbt/output-all-types.txt"), parser.parseRoot().nestedToString());
-			Assertions.assertEquals(getString("nbt/output-bigtest.txt"), parser.parseRoot().nestedToString());
+			Assertions.assertEquals(expected1, parser.parseRoot().nestedToString());
+			Assertions.assertEquals(expected2, parser.parseRoot().nestedToString());
+		}
+		try (NbtParser<IOException> parser = getParser("nbt/all-types.nbt.gz", "nbt/bigtest.nbt.gz")) {
+			Assertions.assertEquals(expected1, parseByVerifying(parser).nestedToString());
+			Assertions.assertEquals(expected2, parseByVerifying(parser).nestedToString());
 		}
 	}
 }
