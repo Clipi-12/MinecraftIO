@@ -25,7 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
-public class SpongeV3Schematic<BlockType, BiomeType, EntityType> implements NestedToString {
+public class Schematic<BlockType, BiomeType, EntityType> implements NestedToString {
 	public final int dataVersion;
 	public final int xOff, yOff, zOff;
 
@@ -34,13 +34,13 @@ public class SpongeV3Schematic<BlockType, BiomeType, EntityType> implements Nest
 	public final @NotNull BiomeType @Nullable [] @NotNull [] @NotNull [] yzxBiomes;
 	public final @NotNull EntityType @Nullable [] entities;
 
-	public SpongeV3Schematic(int dataVersion, int xOff, int yOff, int zOff,
-							 @Range(from = 0, to = (1 << 16) - 1) int xLen,
-							 @Range(from = 0, to = (1 << 16) - 1) int yLen,
-							 @Range(from = 0, to = (1 << 16) - 1) int zLen,
-							 @NotNull BlockType @Nullable [] @NotNull [] @NotNull [] yzxBlocks,
-							 @NotNull BiomeType @Nullable [] @NotNull [] @NotNull [] yzxBiomes,
-							 @NotNull EntityType @Nullable [] entities) {
+	public Schematic(int dataVersion, int xOff, int yOff, int zOff,
+					 @Range(from = 0, to = (1 << 16) - 1) int xLen,
+					 @Range(from = 0, to = (1 << 16) - 1) int yLen,
+					 @Range(from = 0, to = (1 << 16) - 1) int zLen,
+					 @NotNull BlockType @Nullable [] @NotNull [] @NotNull [] yzxBlocks,
+					 @NotNull BiomeType @Nullable [] @NotNull [] @NotNull [] yzxBiomes,
+					 @NotNull EntityType @Nullable [] entities) {
 		this.dataVersion = dataVersion;
 		this.xOff = xOff;
 		this.yOff = yOff;

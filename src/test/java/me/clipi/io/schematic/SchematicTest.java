@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.Map;
+import java.util.LinkedHashMap;
 
 import static me.clipi.io.TestUtils.getString;
 import static me.clipi.io.nbt.NbtTest.getParser;
@@ -63,19 +63,31 @@ public class SchematicTest {
 			return schema = new SpongeV3Schema<>(
 				oomAware, BlockState.class, Block.class, Biome.class, Entity.class,
 				Resource::parse,
-				blockState -> {
-					int i = blockState.indexOf('[');
-					Resource id = Resource.parse(i < 0 ? blockState : blockState.substring(0, i));
-					return id == null ? null : new BlockState(id, Map.of("id and state", blockState));
-				},
-				(x, y, z, blockState) -> new Block(blockState, null, x, y, z),
-				(x, y, z, nbtBlockState) -> new Block(
-					nbtBlockState.blockState,
-					new BlockEntity(nbtBlockState.data, x, y, z),
-					x, y, z
-				),
-				Biome::new,
-				entity -> new Entity(entity.id, entity.data, entity.x, entity.y, entity.z)
+				dataVersion -> dataVersion != 3953 ? null : new DataVersionInfo<>(
+					id -> new DataVersionInfo.BlockStateBuilder<>() {
+						private final LinkedHashMap<String, String> state = new LinkedHashMap<>();
+
+						@Override
+						public boolean addProperty(@NotNull String key, @NotNull String value) {
+							state.put(key, value);
+							return true;
+						}
+
+						@Override
+						@NotNull
+						public BlockState build() {
+							return new BlockState(id, state);
+						}
+					},
+					(x, y, z, blockState) -> new Block(blockState, null, x, y, z),
+					(x, y, z, nbtBlockState) -> new Block(
+						nbtBlockState.blockState,
+						new BlockEntity(nbtBlockState.data, x, y, z),
+						x, y, z
+					),
+					Biome::new,
+					entity -> new Entity(entity.id, entity.data, entity.x, entity.y, entity.z)
+				)
 			);
 		}
 	}

@@ -35,6 +35,14 @@ public abstract class DelegatedCompoundSchema<T extends NbtCompoundSchema> {
 	private DelegatedCompoundSchema() {
 	}
 
+	public static <T extends NbtCompoundSchema> DelegatedCompoundSchema<T> create(
+		@NotNull OomAware oomAware, @NotNull CheckedSupplier<@Nullable T, OomException> tryCompute) throws OomException {
+		T schema = tryCompute.get();
+		return schema == null ?
+			oomAware.tryRun(() -> new LazyEvaluation<>(oomAware, tryCompute)) :
+			oomAware.tryRun(() -> new EagerEvaluation<>(schema));
+	}
+
 	@Nullable
 	@Contract(pure = true)
 	public abstract T computeSchema() throws OomException;

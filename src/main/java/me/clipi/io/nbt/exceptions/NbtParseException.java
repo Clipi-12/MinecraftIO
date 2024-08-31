@@ -120,12 +120,12 @@ public abstract class NbtParseException extends Exception {
 	public static class IncorrectSchema extends NbtParseException {
 		private static final long serialVersionUID = -5635255741545922607L;
 
-		public IncorrectSchema() {
-			super("The specified schema was not met");
+		public IncorrectSchema(@NotNull Object schema) {
+			super("The specified schema was not met: " + schema);
 		}
 
-		public IncorrectSchema(Throwable cause) {
-			super("The specified schema was not met", cause);
+		public IncorrectSchema(@NotNull Object schema, @NotNull Throwable cause) {
+			super("The specified schema was not met: " + schema, cause);
 		}
 	}
 }
