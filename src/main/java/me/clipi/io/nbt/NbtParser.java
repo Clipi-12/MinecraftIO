@@ -135,8 +135,6 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		for (; ; ) {
 			ListOfListsTarget nextTarget = readMapEntries(target);
 			if (nextTarget == null) return;
-			// TODO Create tests for
-			//  list of list of primitives/objects
 			target = readListEntries(nextTarget);
 		}
 	}

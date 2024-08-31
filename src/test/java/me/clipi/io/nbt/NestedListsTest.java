@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.IntConsumer;
+import java.util.stream.Collectors;
 
 import static me.clipi.io.nbt.NbtTest.getParser;
 import static me.clipi.io.nbt.NbtTest.parseByVerifying;
@@ -45,11 +46,14 @@ public class NestedListsTest {
 		appendList4Deep(result);
 		result.append(",\n");
 		appendLCLC(result);
+		result.append(",\n");
+		appendPrimes(result);
 		result.append("\n\t}\n}");
 		nestedLists = result.toString();
 	}
 
 	private static void appendList4Deep(StringBuilder result) {
+		// <editor-fold defaultstate="collapsed" desc="code">
 		String t0 = "\t\t\t", t1 = t0 + "\t\t", t2 = t1 + "\t\t", t3 = t2 + "\t\t", t4 = t3 + "\t\t";
 		String[] tabs = { t0, t1, t2, t3, t4 };
 
@@ -106,9 +110,11 @@ public class NestedListsTest {
 			endIterOfList.accept(0, i == 3);
 		}
 		result.append("\t\t}");
+		// </editor-fold>
 	}
 
 	private static void appendLCLC(StringBuilder result) {
+		// <editor-fold defaultstate="collapsed" desc="code">
 		BiFunction<Integer, Integer, String> innerCompound = (compound, startingIndex) -> {
 			StringBuilder str = new StringBuilder();
 			for (int i = startingIndex; i == startingIndex | (i & 3) != 0; ++i) {
@@ -244,6 +250,47 @@ public class NestedListsTest {
 				innerCompound.apply(3, 8),
 				innerCompound.apply(3, 12)
 			));
+		// </editor-fold>
+	}
+
+	private static int naivePrime(int n) {
+		if (n == 2) --n;
+		assert (n & 1) != 0 | n == 0;
+		next:
+		for (; ; ) {
+			n += 2;
+			for (int i = 2; i < n; ++i) {
+				if (n % i == 0) continue next;
+			}
+			return n;
+		}
+	}
+
+	private static void appendPrimes(StringBuilder result) {
+		NbtList[] primes = new NbtList[3];
+		for (int prime = 0, i = 0; i < 3; ++i) {
+			NbtList[] c = new NbtList[4];
+			for (int j = 0; j < 4; ++j) {
+				NbtList[] b = new NbtList[5];
+				for (int k = 0; k < 5; ++k) {
+					int[] a = new int[10];
+					for (int l = 0; l < 10; ++l)
+						a[l] = prime = naivePrime(prime);
+					b[k] = NbtList.create(a);
+				}
+				c[j] = NbtList.create(b);
+			}
+			primes[i] = NbtList.create(c);
+		}
+
+		result.append("\t\t3x4x5x10 nested list of the first prime numbers: ").append(
+			NbtList.create(primes)
+				   .nestedToString()
+				   .lines()
+				   .map(l -> "\t\t" + l)
+				   .collect(Collectors.joining("\n"))
+				   .substring(2)
+		);
 	}
 
 	@Test
