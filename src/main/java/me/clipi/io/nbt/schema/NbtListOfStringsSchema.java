@@ -28,7 +28,8 @@ public interface NbtListOfStringsSchema {
 	@NotNull
 	NbtListOfStringsSchema ALWAYS = new NbtListOfStringsSchema() {
 		@Override
-		public boolean deniesString(int index, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) {
+		public boolean deniesString(
+			int index, @Range(from = 0, to = (1 << 16) - 1) int length, boolean isUtf16LenOrElseModUtf8Len) {
 			return false;
 		}
 
@@ -38,7 +39,8 @@ public interface NbtListOfStringsSchema {
 		}
 	};
 
-	boolean deniesString(int index, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) throws OomException;
+	boolean deniesString(
+		int index, @Range(from = 0, to = (1 << 16) - 1) int length, boolean isUtf16LenOrElseModUtf8Len) throws OomException;
 
 	boolean deniesString(int index, @NotNull String value) throws OomException;
 }

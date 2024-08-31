@@ -145,8 +145,7 @@ public class NbtVerifier {
 						}
 						case NbtType.tagString: {
 							String obj = (String) objects[oCount++];
-							// TODO this length is not the same as the modifiedUtf8ByteLength!!
-							if (schema.deniesString(key, obj.length()) || schema.deniesString(key, obj))
+							if (schema.deniesString(key, obj.length(), true) || schema.deniesString(key, obj))
 								throw new NbtParseException.IncorrectSchema(schema);
 							break;
 						}
@@ -467,8 +466,7 @@ public class NbtVerifier {
 		throws OomException, NbtParseException.IncorrectSchema {
 		for (int i = 0, len = list.length; i < len; ++i) {
 			String value = list[i];
-			// TODO this length is not the same as the modifiedUtf8ByteLength!!
-			if (schema.deniesString(i, value.length()) || schema.deniesString(i, value))
+			if (schema.deniesString(i, value.length(), true) || schema.deniesString(i, value))
 				throw new NbtParseException.IncorrectSchema(schema);
 		}
 	}

@@ -612,7 +612,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	private String readString(@NotNull NbtCompoundSchema schema, @NotNull String key)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int stringLen = di.expectShort();
-		if (schema.deniesString(key, stringLen)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesString(key, stringLen, false)) throw new NbtParseException.IncorrectSchema(schema);
 		String value;
 		try {
 			value = di.expectModifiedUtf8((short) stringLen);
@@ -627,7 +627,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	private String readString(@NotNull NbtListOfStringsSchema schema, int index)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int stringLen = di.expectShort();
-		if (schema.deniesString(index, stringLen)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesString(index, stringLen, false)) throw new NbtParseException.IncorrectSchema(schema);
 		String value;
 		try {
 			value = di.expectModifiedUtf8((short) stringLen);

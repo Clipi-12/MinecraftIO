@@ -39,6 +39,7 @@ public interface NbtCompoundSchema extends NestedToString {
 
 	boolean deniesFinishedCompound() throws OomException, NbtParseException, NbtKeyNotFoundException;
 
+
 	boolean deniesByte(@NotNull String key, @Range(from = 0, to = (1 << 8) - 1) int value) throws OomException;
 
 	boolean deniesShort(@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int value) throws OomException;
@@ -50,6 +51,7 @@ public interface NbtCompoundSchema extends NestedToString {
 	boolean deniesFloat(@NotNull String key, float value) throws OomException;
 
 	boolean deniesDouble(@NotNull String key, double value) throws OomException;
+
 
 	boolean deniesByteArray(
 		@NotNull String key, @Range(from = 0, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
@@ -70,42 +72,49 @@ public interface NbtCompoundSchema extends NestedToString {
 
 
 	boolean deniesString(
-		@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) throws OomException;
+		@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int length, boolean isUtf16LenOrElseModUtf8Len) throws OomException;
 
 	boolean deniesString(@NotNull String key, @NotNull String value) throws OomException;
 
 
 	boolean deniesEmptyList(@NotNull String key) throws OomException;
 
+
 	boolean deniesByteList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	boolean deniesByteList(@NotNull String key, byte @NotNull [] value) throws OomException;
+
 
 	boolean deniesShortList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	boolean deniesShortList(@NotNull String key, short @NotNull [] value) throws OomException;
 
+
 	boolean deniesIntList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	boolean deniesIntList(@NotNull String key, int @NotNull [] value) throws OomException;
+
 
 	boolean deniesLongList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	boolean deniesLongList(@NotNull String key, long @NotNull [] value) throws OomException;
 
+
 	boolean deniesFloatList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	boolean deniesFloatList(@NotNull String key, float @NotNull [] value) throws OomException;
 
+
 	boolean deniesDoubleList(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException;
 
 	boolean deniesDoubleList(@NotNull String key, double @NotNull [] value) throws OomException;
+
 
 	/**
 	 * @return The schema for the specified list, or {@code null} if the list is not allowed.

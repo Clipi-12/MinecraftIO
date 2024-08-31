@@ -343,7 +343,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		@Override
 		public boolean deniesString(
-			@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) {
+			@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int length, boolean isUtf16LenOrElseModUtf8Len) {
 			return !"Id".equals(key);
 		}
 
@@ -402,7 +402,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 				int resourceUntil = i;
 				if (i >= 0 && (id.indexOf('[', ++i) >= 0 || id.indexOf(']') != lenM1))
 					return null;
-				
+
 				ResourceType resource = tryParseResource.apply(
 					resourceUntil < 0 ? id : id.substring(0, resourceUntil));
 				if (resource == null) return null;

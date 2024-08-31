@@ -107,7 +107,8 @@ public abstract class DenyAllCompoundSchema implements NbtCompoundSchema {
 	}
 
 	@Override
-	public boolean deniesString(@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int modifiedUtf8ByteLength) throws OomException {
+	public boolean deniesString(
+		@NotNull String key, @Range(from = 0, to = (1 << 16) - 1) int length, boolean isUtf16LenOrElseModUtf8Len) throws OomException {
 		return true;
 	}
 
