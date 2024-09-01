@@ -36,15 +36,37 @@ public class NbtVerifier {
 		return schema;
 	}
 
+	/**
+	 * @throws NbtParseException.DuplicatedKey when an {@link SaveCompoundSchema} is reused in the schema tree, and it
+	 *                                         already contains a key that was going to be inserted
+	 */
+	@NotNull
+	public static <Schema extends NbtCompoundSchema> Schema verifyRoot(
+		@NotNull OomAware oomAware, @NotNull NbtRoot root, @NotNull NbtRootSchema<Schema> rootSchema) throws OomException, NbtParseException.IncorrectSchema, NbtParseException.DuplicatedKey {
+		Schema schema = rootSchema.schemaForRootValue(root.name, oomAware);
+		if (schema == null) throw new NbtParseException.IncorrectSchema(rootSchema);
+		verifyCompoundOrThrow(oomAware, root.rootValue, schema);
+		return schema;
+	}
+
 	public static boolean isDeniedBySchema(
 		@NotNull OomAware oomAware, @NotNull NbtCompound compound, @NotNull NbtCompoundSchema schema) throws OomException {
+		try {
+			verifyCompoundOrThrow(oomAware, compound, schema);
+		} catch (NbtParseException.IncorrectSchema | NbtParseException.DuplicatedKey e) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * @throws NbtParseException.DuplicatedKey when an {@link SaveCompoundSchema} is reused in the schema tree, and it
+	 *                                         already contains a key that was going to be inserted
+	 */
+	public static void verifyCompoundOrThrow(
+		@NotNull OomAware oomAware, @NotNull NbtCompound compound, @NotNull NbtCompoundSchema schema) throws OomException, NbtParseException.IncorrectSchema, NbtParseException.DuplicatedKey {
 		if (schema instanceof SaveCompoundSchema) {
-			try {
-				compound.copyTo(((SaveCompoundSchema) schema).compound);
-			} catch (NbtParseException.DuplicatedKey ex) {
-				// TODO NbtCompound.copyTo() failed
-				return true;
-			}
+			compound.copyTo(((SaveCompoundSchema) schema).compound);
 		}
 
 		FixedStack<VerifyingTarget> nestedTarget = oomAware.tryRun(
@@ -55,17 +77,10 @@ public class NbtVerifier {
 		} catch (FixedStack.FullStackException ex) {
 			throw new IllegalStateException(ex);
 		}
-		try {
-			for (; ; ) {
-				ListOfListsTarget nextTarget = verifyMapEntries(oomAware, nestedTarget, target);
-				if (nextTarget == null) return false;
-				target = verifyListEntries(oomAware, nestedTarget, nextTarget);
-			}
-		} catch (NbtParseException.IncorrectSchema ex) {
-			return true;
-		} catch (NbtParseException.DuplicatedKey ex) {
-			// TODO NbtCompound.copyTo() failed
-			return true;
+		for (; ; ) {
+			ListOfListsTarget nextTarget = verifyMapEntries(oomAware, nestedTarget, target);
+			if (nextTarget == null) return;
+			target = verifyListEntries(oomAware, nestedTarget, nextTarget);
 		}
 	}
 
@@ -292,8 +307,7 @@ public class NbtVerifier {
 	@NotNull
 	private static CompoundTarget verifyListEntries(
 		@NotNull OomAware oomAware, @NotNull FixedStack<VerifyingTarget> nestedTarget,
-		@NotNull ListOfListsTarget target) throws OomException, NbtParseException.IncorrectSchema,
-												  NbtParseException.DuplicatedKey {
+		@NotNull ListOfListsTarget target) throws OomException, NbtParseException.IncorrectSchema {
 		assert nestedTarget.tryPeek() == target;
 
 		newTarget:

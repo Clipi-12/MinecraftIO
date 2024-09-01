@@ -20,10 +20,19 @@
 
 package me.clipi.io.schematic;
 
+import me.clipi.io.OomException;
+import me.clipi.io.nbt.NbtParser;
+import me.clipi.io.nbt.NbtRoot;
+import me.clipi.io.nbt.NbtVerifier;
+import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.util.NestedToString;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
+
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.IntFunction;
 
 public class Schematic<BlockType, BiomeType, EntityType> implements NestedToString {
 	public final int dataVersion;
@@ -51,6 +60,47 @@ public class Schematic<BlockType, BiomeType, EntityType> implements NestedToStri
 		this.yzxBlocks = yzxBlocks;
 		this.yzxBiomes = yzxBiomes;
 		this.entities = entities;
+	}
+
+	@NotNull
+	public static <ReadException extends Exception, ResourceType, BlockStateType, BlockType, BiomeType, EntityType>
+	Schematic<BlockType, BiomeType, EntityType> parse(
+		@NotNull NbtParser<ReadException> parser,
+		@NotNull Class<BlockStateType> blockStateClass,
+		@NotNull Class<BlockType> blockClass,
+		@NotNull Class<BiomeType> biomeClass,
+		@NotNull Class<EntityType> entityClass,
+		@NotNull Function<@NotNull String, @Nullable ResourceType> tryParseResource,
+		@NotNull IntFunction<@Nullable DataVersionInfo<ResourceType, BlockStateType, BlockType, BiomeType, EntityType>> tryDataVersionInfo)
+		throws ReadException, OomException, NbtParseException {
+		return parser.parseRoot(new SpongeV3Root<>(
+			Objects.requireNonNull(blockStateClass), Objects.requireNonNull(blockClass),
+			Objects.requireNonNull(biomeClass), Objects.requireNonNull(entityClass),
+			Objects.requireNonNull(tryParseResource), Objects.requireNonNull(tryDataVersionInfo)
+		)).schema.schematic;
+	}
+
+	@NotNull
+	public static <ResourceType, BlockStateType, BlockType, BiomeType, EntityType>
+	Schematic<BlockType, BiomeType, EntityType> parse(
+		@NotNull NbtRoot nbt,
+		@NotNull Class<BlockStateType> blockStateClass,
+		@NotNull Class<BlockType> blockClass,
+		@NotNull Class<BiomeType> biomeClass,
+		@NotNull Class<EntityType> entityClass,
+		@NotNull Function<@NotNull String, @Nullable ResourceType> tryParseResource,
+		@NotNull IntFunction<@Nullable DataVersionInfo<ResourceType, BlockStateType, BlockType, BiomeType, EntityType>> tryDataVersionInfo)
+		throws OomException, NbtParseException.IncorrectSchema {
+		try {
+			return NbtVerifier.verifyRoot(nbt.rootValue, nbt, new SpongeV3Root<>(
+				Objects.requireNonNull(blockStateClass), Objects.requireNonNull(blockClass),
+				Objects.requireNonNull(biomeClass), Objects.requireNonNull(entityClass),
+				Objects.requireNonNull(tryParseResource), Objects.requireNonNull(tryDataVersionInfo)
+			)).schema.schematic;
+		} catch (NbtParseException.DuplicatedKey ex) {
+			// The current schema tree doesn't reuse schemas
+			throw new AssertionError(ex);
+		}
 	}
 
 	@Override
