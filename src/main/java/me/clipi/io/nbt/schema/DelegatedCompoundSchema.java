@@ -24,6 +24,7 @@ import me.clipi.io.OomException;
 import me.clipi.io.OomException.OomAware;
 import me.clipi.io.nbt.NbtVerifier;
 import me.clipi.io.nbt.SaveCompoundSchema;
+import me.clipi.io.util.NestedToString;
 import me.clipi.io.util.function.CheckedSupplier;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -31,7 +32,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
-public abstract class DelegatedCompoundSchema<T extends NbtCompoundSchema> {
+public abstract class DelegatedCompoundSchema<T extends NbtCompoundSchema> implements NestedToString {
 	private DelegatedCompoundSchema() {
 	}
 
@@ -41,6 +42,12 @@ public abstract class DelegatedCompoundSchema<T extends NbtCompoundSchema> {
 		return schema == null ?
 			oomAware.tryRun(() -> new LazyEvaluation<>(oomAware, tryCompute)) :
 			oomAware.tryRun(() -> new EagerEvaluation<>(schema));
+	}
+
+	@Override
+	@NotNull
+	public final String toString() {
+		return nestedToString();
 	}
 
 	@Nullable
@@ -56,6 +63,11 @@ public abstract class DelegatedCompoundSchema<T extends NbtCompoundSchema> {
 
 		public EagerEvaluation(@NotNull T schema) {
 			this.schema = Objects.requireNonNull(schema);
+		}
+
+		@Override
+		public void toString(@NotNull Nester nester) {
+			nester.append("schema", schema);
 		}
 
 		@Override
@@ -82,6 +94,12 @@ public abstract class DelegatedCompoundSchema<T extends NbtCompoundSchema> {
 			this.oomAware = oomAware;
 			this.rawSchema = SaveCompoundSchema.create(oomAware);
 			this.compute = Objects.requireNonNull(compute);
+		}
+
+		@Override
+		public void toString(@NotNull Nester nester) {
+			nester.append("raw schema", rawSchema);
+			if (compute == null) nester.append("schema", schema);
 		}
 
 		@Override

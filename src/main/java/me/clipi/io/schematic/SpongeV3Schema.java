@@ -101,7 +101,12 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 	@Override
 	public void toString(@NotNull Nester nester) {
-		// TODO
+		nester.append("data version", dataVersion)
+			  .append("offset", new int[] { xOff, yOff, zOff })
+			  .append("dimensions", new int[] { xLen, yLen, zLen })
+			  .append("blocks", blocks)
+			  .append("biomes", biomes)
+			  .append("entities", entities == null ? null : entities.schemas);
 	}
 
 	@Nullable
@@ -253,7 +258,9 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		@Override
 		public void toString(@NotNull Nester nester) {
-			// TODO
+			nester.append("position", new double[] { x, y, z })
+				  .append("id", super.id)
+				  .append("data", super.data);
 		}
 
 		@NotNull
@@ -293,7 +300,8 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		@Override
 		public void toString(@NotNull Nester nester) {
-			// TODO
+			nester.append("position", new int[] { x, y, z })
+				  .append("data", super.data);
 		}
 
 		@NotNull
@@ -377,7 +385,9 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		@Override
 		public void toString(@NotNull Nester nester) {
-			// TODO
+			nester.append("palette", super.palette)
+				  .append("data", super.data)
+				  .append("biomes in y,z,x order", super.yzxElement);
 		}
 
 		@Override
@@ -437,7 +447,9 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		@Override
 		public void toString(@NotNull Nester nester) {
-			// TODO
+			nester.append("palette", super.palette)
+				  .append("data", super.data)
+				  .append("blocks in y,z,x order", super.yzxElement);
 		}
 
 		@Override
@@ -582,7 +594,10 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		@Override
 		public void toString(@NotNull Nester nester) {
-			// TODO
+			nester.append("current element count", currentElementCount)
+				  .append("max elements", maxElements)
+				  .append("palette with negative indices", negArrayShiftedOne)
+				  .append("palette with positive indices", positiveArray);
 		}
 
 		@Override
