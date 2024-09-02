@@ -131,7 +131,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 				entities[i] = oomAware.tryRun(() -> dataVersionInfo.tryParseEntity.apply(schemas[finalI].into()));
 			}
 		}
-		@NotNull BlockType[] @NotNull [] @NotNull [] blocks;
+		@NotNull BlockType @Nullable [] blocks;
 		if (this.blocks == null) {
 			blocks = null;
 		} else if (this.blocks.computeSchema() == null) {
@@ -139,7 +139,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 		} else {
 			blocks = this.blocks.computeSchema().yzxElement;
 		}
-		@NotNull BiomeType[] @NotNull [] @NotNull [] biomes;
+		@NotNull BiomeType @Nullable [] biomes;
 		if (this.biomes == null) {
 			biomes = null;
 		} else if (this.biomes.computeSchema() == null) {
@@ -498,7 +498,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		private PaletteSchema<T> palette;
 		private byte[] data;
-		protected final @NotNull R @NotNull [] @NotNull [] @NotNull [] yzxElement;
+		protected final @NotNull R @NotNull [] yzxElement;
 
 		@SuppressWarnings("unchecked")
 		private PaletteAndDataSchema(@NotNull OomAware oomAware,
@@ -519,7 +519,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 			if (xyzLen > GrowableArray.MAX_ARRAY_SIZE) throw OomException.INSTANCE;
 			this.xzLen = (int) xzLen;
 			this.xyzLen = (int) (xzLen * yLen);
-			yzxElement = oomAware.tryRun(() -> (R[][][]) Array.newInstance(rClass, yLen, zLen, xLen));
+			yzxElement = oomAware.tryRun(() -> (R[]) Array.newInstance(rClass, yLen * zLen * xLen));
 		}
 
 		@Override
@@ -543,7 +543,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 						hasErrors[0] = true;
 						return false;
 					}
-					yzxElement[y][z][x] = r;
+					yzxElement[pos] = r;
 					return true;
 				});
 			} catch (VarIntLong.ParseVarIntLongException ex) {

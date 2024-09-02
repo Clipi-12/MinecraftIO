@@ -36,24 +36,59 @@ import java.util.function.IntFunction;
 
 public class Schematic<BlockType, BiomeType, EntityType> implements NestedToString {
 	public final int dataVersion;
-	public final int xOff, yOff, zOff;
+	public final int xOffset, yOffset, zOffset;
 
 	public final @Range(from = 0, to = (1 << 16) - 1) int xLen, yLen, zLen;
-	public final @NotNull BlockType @Nullable [] @NotNull [] @NotNull [] yzxBlocks;
-	public final @NotNull BiomeType @Nullable [] @NotNull [] @NotNull [] yzxBiomes;
+	/**
+	 * The blocks present in this schematic, in a [y,z,x] order
+	 * <p>i.e. the element in the coordinate {@code (x,y,z)} is located at the index {@code x + z*xLen + y*xLen*zLen}
+	 *
+	 * @apiNote The array is either {@code null} or contains {@code xLen*yLen*zLen} entries
+	 */
+	public final @NotNull BlockType @Nullable [] yzxBlocks;
+	/**
+	 * The biomes present in this schematic, in a [y,z,x] order
+	 * <p>i.e. the element in the coordinate {@code (x,y,z)} is located at the index {@code x + z*xLen + y*xLen*zLen}
+	 *
+	 * @apiNote The array is either {@code null} or contains {@code xLen*yLen*zLen} entries
+	 */
+	public final @NotNull BiomeType @Nullable [] yzxBiomes;
 	public final @NotNull EntityType @Nullable [] entities;
 
-	public Schematic(int dataVersion, int xOff, int yOff, int zOff,
+	/**
+	 * @param yzxBlocks either a {@code null} value or an array with {@code xLen*yLen*zLen} blocks in [y,z,x] order
+	 * @param yzxBiomes either a {@code null} value or an array with {@code xLen*yLen*zLen} biomes in [y,z,x] order
+	 * @throws IllegalArgumentException if the preconditions are not met
+	 * @implNote This constructor does not check if each entry of yzxBlocks and yzxBiomes is non-null, despite it
+	 * being required if the arrays themselves are not null.
+	 * <p>This constructor does not check if the block-entities represented by each block are inside the region
+	 * {@code [(0,0,0), (xLen,yLen,zLen)]}, despite it being required.
+	 */
+	public Schematic(int dataVersion, int xOffset, int yOffset, int zOff,
 					 @Range(from = 0, to = (1 << 16) - 1) int xLen,
 					 @Range(from = 0, to = (1 << 16) - 1) int yLen,
 					 @Range(from = 0, to = (1 << 16) - 1) int zLen,
-					 @NotNull BlockType @Nullable [] @NotNull [] @NotNull [] yzxBlocks,
-					 @NotNull BiomeType @Nullable [] @NotNull [] @NotNull [] yzxBiomes,
+					 @NotNull BlockType @Nullable [] yzxBlocks,
+					 @NotNull BiomeType @Nullable [] yzxBiomes,
 					 @NotNull EntityType @Nullable [] entities) {
+		preconditions:
+		{
+			// noinspection ConstantValue
+			if (xLen >= 0 & xLen < 1 << 16 &
+				yLen >= 0 & yLen < 1 << 16 &
+				zLen >= 0 & zLen < 1 << 16) {
+				int dim = xLen * yLen * zLen;
+				if ((yzxBlocks == null || yzxBlocks.length == dim) &&
+					(yzxBiomes == null || yzxBiomes.length == dim)) {
+					break preconditions;
+				}
+			}
+			throw new IllegalArgumentException();
+		}
 		this.dataVersion = dataVersion;
-		this.xOff = xOff;
-		this.yOff = yOff;
-		this.zOff = zOff;
+		this.xOffset = xOffset;
+		this.yOffset = yOffset;
+		this.zOffset = zOff;
 		this.xLen = xLen;
 		this.yLen = yLen;
 		this.zLen = zLen;
@@ -112,7 +147,7 @@ public class Schematic<BlockType, BiomeType, EntityType> implements NestedToStri
 	@Override
 	public void toString(@NotNull Nester nester) {
 		nester.append("data version", dataVersion)
-			  .append("offset", new int[] { xOff, yOff, zOff })
+			  .append("offset", new int[] { xOffset, yOffset, zOffset })
 			  .append("dimensions", new int[] { xLen, yLen, zLen })
 			  .append("blocks in y,z,x order", yzxBlocks)
 			  .append("biomes in y,z,x order", yzxBiomes)
