@@ -83,7 +83,7 @@ public abstract class NbtParseException extends Exception {
 	public static class DuplicatedKey extends NbtParseException {
 		private static final long serialVersionUID = -482101492020003634L;
 
-		public final @NotNull NestedToString compoundBeingConstructed;
+		public final transient @NotNull NestedToString compoundBeingConstructed;
 		public final @NotNull String key;
 
 		public DuplicatedKey(@NotNull String key, @NotNull NestedToString compoundBeingConstructed) {

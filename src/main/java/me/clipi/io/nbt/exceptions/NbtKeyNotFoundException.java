@@ -26,7 +26,7 @@ import org.jetbrains.annotations.NotNull;
 public class NbtKeyNotFoundException extends Exception {
 	private static final long serialVersionUID = -3525208150628883798L;
 
-	public final @NotNull NbtCompound compoundBeingConstructed;
+	public final transient @NotNull NbtCompound compoundBeingConstructed;
 	public final @NotNull String key;
 
 	public NbtKeyNotFoundException(@NotNull String key, @NotNull NbtCompound compound) {

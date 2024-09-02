@@ -72,6 +72,7 @@ public final class FixedStack<T> {
 	 *
 	 * <p>If the elements don't fit, none will be pushed
 	 */
+	@SuppressWarnings("varargs")
 	@SafeVarargs
 	public final void pushAll(@NotNull T @NotNull ... elements) throws FullStackException {
 		if (!tryPushAll(elements)) throw new FullStackException(backingArray.length + elements.length);
