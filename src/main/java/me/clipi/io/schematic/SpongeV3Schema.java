@@ -41,7 +41,6 @@ import org.jetbrains.annotations.Range;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 
@@ -406,42 +405,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 			@Range(from = 0, to = (1 << 16) - 1) int xLen,
 			@Range(from = 0, to = (1 << 16) - 1) int yLen,
 			@Range(from = 0, to = (1 << 16) - 1) int zLen) throws OomException {
-			super(oomAware, blockStateClass, blockClass, id -> {
-				int len = id.length(), lenM1 = len - 1;
-				int i = id.indexOf('[');
-				int resourceUntil = i;
-				if (i >= 0 && (id.indexOf('[', ++i) >= 0 || id.indexOf(']') != lenM1))
-					return null;
-
-				ResourceType resource = tryParseResource.apply(
-					resourceUntil < 0 ? id : id.substring(0, resourceUntil));
-				if (resource == null) return null;
-				DataVersionInfo.BlockStateBuilder<BlockStateType> builder =
-					dataVersionInfo.tryParseBlockState.apply(resource);
-				if (builder == null) return null;
-				if (resourceUntil < 0) return builder.build();
-
-				HashSet<String> dejaVu = new HashSet<>();
-				int lastComma = id.lastIndexOf(',', lenM1);
-				for (; i < lastComma; ++i) {
-					int comma = id.indexOf(',', i), eq = id.indexOf('=', i);
-					if (eq >= 0 & (comma < 0 | comma > eq)) {
-						String key = id.substring(i, eq), value = id.substring(++eq, i = comma);
-						if (id.indexOf('=', eq) >= comma &&
-							dejaVu.add(key) &&
-							builder.addProperty(key, value)) continue;
-					}
-					return null;
-				}
-				int lastEq = id.indexOf('=', i);
-				if (lastEq >= 0) {
-					String key = id.substring(i, lastEq), value = id.substring(++lastEq, lenM1);
-					if (id.indexOf('=', lastEq) < 0 &&
-						dejaVu.add(key) &&
-						builder.addProperty(key, value)) return builder.build();
-				}
-				return null;
-			}, xLen, yLen, zLen);
+			super(oomAware, blockStateClass, blockClass, dataVersionInfo.tryParseBlockState, xLen, yLen, zLen);
 			this.dataVersionInfo = dataVersionInfo;
 		}
 

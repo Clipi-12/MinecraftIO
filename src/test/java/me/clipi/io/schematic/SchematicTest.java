@@ -39,6 +39,7 @@ import static me.clipi.io.nbt.NbtTest.getParser;
 public class SchematicTest {
 	private static final @NotNull IntFunction<@Nullable DataVersionInfo<Resource, BlockState, Block, Biome, Entity>> tryDataVersionInfo =
 		dataVersion -> dataVersion != 3953 ? null : new DataVersionInfo<>(
+			Resource::parse,
 			id -> new DataVersionInfo.BlockStateBuilder<>() {
 				private final LinkedHashMap<String, String> state = new LinkedHashMap<>();
 

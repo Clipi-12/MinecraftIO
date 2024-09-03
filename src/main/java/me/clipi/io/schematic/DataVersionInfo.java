@@ -26,12 +26,13 @@ import me.clipi.io.util.function.PositionObjFunction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.function.Function;
 
 public class DataVersionInfo<ResourceType, BlockStateType, BlockType, BiomeType, EntityType> {
 
-	public final @NotNull Function<@NotNull ResourceType, @Nullable BlockStateBuilder<BlockStateType>> tryParseBlockState;
+	public final @NotNull Function<@NotNull String, @Nullable BlockStateType> tryParseBlockState;
 	public final @NotNull PositionObjFunction<@NotNull BlockStateType, @Nullable BlockType> tryDefaultBlock;
 	public final @NotNull PositionObjFunction<
 		@NotNull NbtBlockEntity<ResourceType, BlockStateType>,
@@ -41,7 +42,7 @@ public class DataVersionInfo<ResourceType, BlockStateType, BlockType, BiomeType,
 	public final @NotNull Function<@NotNull NbtEntity<ResourceType>, @Nullable EntityType> tryParseEntity;
 
 	public DataVersionInfo(
-		@NotNull Function<@NotNull ResourceType, @Nullable BlockStateBuilder<BlockStateType>> tryParseBlockState,
+		@NotNull Function<@NotNull String, @Nullable BlockStateType> tryParseBlockState,
 		@NotNull PositionObjFunction<@NotNull BlockStateType, @Nullable BlockType> tryDefaultBlock,
 		@NotNull PositionObjFunction<@NotNull NbtBlockEntity<ResourceType, BlockStateType>, @Nullable BlockType> tryNbtBlock,
 		@NotNull Function<@NotNull ResourceType, @Nullable BiomeType> tryParseBiome,
@@ -51,6 +52,51 @@ public class DataVersionInfo<ResourceType, BlockStateType, BlockType, BiomeType,
 		this.tryNbtBlock = Objects.requireNonNull(tryNbtBlock);
 		this.tryParseBiome = Objects.requireNonNull(tryParseBiome);
 		this.tryParseEntity = Objects.requireNonNull(tryParseEntity);
+	}
+
+	public DataVersionInfo(
+		@NotNull Function<@NotNull String, @Nullable ResourceType> tryParseResource,
+		@NotNull Function<@NotNull ResourceType, @Nullable BlockStateBuilder<BlockStateType>> tryParseBlockState,
+		@NotNull PositionObjFunction<@NotNull BlockStateType, @Nullable BlockType> tryDefaultBlock,
+		@NotNull PositionObjFunction<@NotNull NbtBlockEntity<ResourceType, BlockStateType>, @Nullable BlockType> tryNbtBlock,
+		@NotNull Function<@NotNull ResourceType, @Nullable BiomeType> tryParseBiome,
+		@NotNull Function<@NotNull NbtEntity<ResourceType>, @Nullable EntityType> tryParseEntity) {
+		this(id -> {
+			int len = id.length(), lenM1 = len - 1;
+			int i = id.indexOf('[');
+			int resourceUntil = i;
+			if (i >= 0 && (id.indexOf('[', ++i) >= 0 || id.indexOf(']') != lenM1))
+				return null;
+
+			ResourceType resource = tryParseResource.apply(
+				resourceUntil < 0 ? id : id.substring(0, resourceUntil));
+			if (resource == null) return null;
+			DataVersionInfo.BlockStateBuilder<BlockStateType> builder =
+				tryParseBlockState.apply(resource);
+			if (builder == null) return null;
+			if (resourceUntil < 0) return builder.build();
+
+			HashSet<String> dejaVu = new HashSet<>();
+			int lastComma = id.lastIndexOf(',', lenM1);
+			for (; i < lastComma; ++i) {
+				int comma = id.indexOf(',', i), eq = id.indexOf('=', i);
+				if (eq >= 0 & (comma < 0 | comma > eq)) {
+					String key = id.substring(i, eq), value = id.substring(++eq, i = comma);
+					if (id.indexOf('=', eq) >= comma &&
+						dejaVu.add(key) &&
+						builder.addProperty(key, value)) continue;
+				}
+				return null;
+			}
+			int lastEq = id.indexOf('=', i);
+			if (lastEq >= 0) {
+				String key = id.substring(i, lastEq), value = id.substring(++lastEq, lenM1);
+				if (id.indexOf('=', lastEq) < 0 &&
+					dejaVu.add(key) &&
+					builder.addProperty(key, value)) return builder.build();
+			}
+			return null;
+		}, tryDefaultBlock, tryNbtBlock, tryParseBiome, tryParseEntity);
 	}
 
 	public static abstract class BlockStateBuilder<BlockStateType> {
