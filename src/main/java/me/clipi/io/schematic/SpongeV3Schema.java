@@ -357,7 +357,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		@Override
 		public boolean deniesString(@NotNull String key, @NotNull String value) throws OomException {
-			return null == (this.id = oomAware.tryRun(() -> tryParse.apply(value)));
+			return value.isEmpty() || null == (this.id = oomAware.tryRun(() -> tryParse.apply(value)));
 		}
 
 		@Override
@@ -572,7 +572,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		@Override
 		public boolean deniesInt(@NotNull String key, int idx) throws OomException {
-			if (++currentElementCount > maxElements) return true;
+			if (key.isEmpty() | ++currentElementCount > maxElements) return true;
 			GrowableArray<T[]> tempArray;
 			if (idx >= 0) {
 				tempArray = positiveArray;
@@ -583,7 +583,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 			if (idx >= tempArray.getSize())
 				tempArray.zeroExtend(idx);
 			T[] asArray = tempArray.inner;
-			if (asArray[idx] != null) return true; // Duplicated key
+			if (asArray[idx] != null) return true; // Duplicated index
 			T parsed = oomAware.tryRunOrNull(() -> {
 				// noinspection DataFlowIssue
 				return tryParse.apply(key);
