@@ -56,10 +56,10 @@ public class SchematicTest {
 				}
 			},
 			(x, y, z, blockState) -> new Block(blockState, null, x, y, z),
-			(x, y, z, nbtBlockState) -> new Block(
+			(nbtBlockState) -> new Block(
 				nbtBlockState.blockState,
-				new BlockEntity(nbtBlockState.data, x, y, z),
-				x, y, z
+				new BlockEntity(nbtBlockState.data, nbtBlockState.x, nbtBlockState.y, nbtBlockState.z),
+				nbtBlockState.x, nbtBlockState.y, nbtBlockState.z
 			),
 			Biome::new,
 			entity -> new Entity(entity.id, entity.data, entity.x, entity.y, entity.z)

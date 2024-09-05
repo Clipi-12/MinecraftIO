@@ -34,17 +34,14 @@ public class DataVersionInfo<ResourceType, BlockStateType, BlockType, BiomeType,
 
 	public final @NotNull Function<@NotNull String, @Nullable BlockStateType> tryParseBlockState;
 	public final @NotNull PositionObjFunction<@NotNull BlockStateType, @Nullable BlockType> tryDefaultBlock;
-	public final @NotNull PositionObjFunction<
-		@NotNull NbtBlockEntity<ResourceType, BlockStateType>,
-		@Nullable BlockType
-		> tryNbtBlock;
+	public final @NotNull Function<@NotNull NbtBlockEntity<ResourceType, BlockStateType>, @Nullable BlockType> tryNbtBlock;
 	public final @NotNull Function<@NotNull ResourceType, @Nullable BiomeType> tryParseBiome;
 	public final @NotNull Function<@NotNull NbtEntity<ResourceType>, @Nullable EntityType> tryParseEntity;
 
 	public DataVersionInfo(
 		@NotNull Function<@NotNull String, @Nullable BlockStateType> tryParseBlockState,
 		@NotNull PositionObjFunction<@NotNull BlockStateType, @Nullable BlockType> tryDefaultBlock,
-		@NotNull PositionObjFunction<@NotNull NbtBlockEntity<ResourceType, BlockStateType>, @Nullable BlockType> tryNbtBlock,
+		@NotNull Function<@NotNull NbtBlockEntity<ResourceType, BlockStateType>, @Nullable BlockType> tryNbtBlock,
 		@NotNull Function<@NotNull ResourceType, @Nullable BiomeType> tryParseBiome,
 		@NotNull Function<@NotNull NbtEntity<ResourceType>, @Nullable EntityType> tryParseEntity) {
 		this.tryParseBlockState = Objects.requireNonNull(tryParseBlockState);
@@ -58,7 +55,7 @@ public class DataVersionInfo<ResourceType, BlockStateType, BlockType, BiomeType,
 		@NotNull Function<@NotNull String, @Nullable ResourceType> tryParseResource,
 		@NotNull Function<@NotNull ResourceType, @Nullable BlockStateBuilder<BlockStateType>> tryParseBlockState,
 		@NotNull PositionObjFunction<@NotNull BlockStateType, @Nullable BlockType> tryDefaultBlock,
-		@NotNull PositionObjFunction<@NotNull NbtBlockEntity<ResourceType, BlockStateType>, @Nullable BlockType> tryNbtBlock,
+		@NotNull Function<@NotNull NbtBlockEntity<ResourceType, BlockStateType>, @Nullable BlockType> tryNbtBlock,
 		@NotNull Function<@NotNull ResourceType, @Nullable BiomeType> tryParseBiome,
 		@NotNull Function<@NotNull NbtEntity<ResourceType>, @Nullable EntityType> tryParseEntity) {
 		this(id -> {

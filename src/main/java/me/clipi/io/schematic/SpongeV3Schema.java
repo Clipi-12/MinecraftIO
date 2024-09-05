@@ -345,6 +345,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 
 		@Override
 		public boolean deniesFinishedCompound() {
+			if (data != null && data.entries() == 0) data = null;
 			return this.id == null;
 		}
 
@@ -429,7 +430,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 			if (blockEntities != null) {
 				int idx = Arrays.binarySearch(blockEntities, pos, Comparator.comparingInt(
 					o -> o instanceof Integer ? (int) o : ((BlockEntitySchema<?>) o).pos));
-				if (idx >= 0) return dataVersionInfo.tryNbtBlock.apply(x, y, z, blockEntities[idx].into(blockState));
+				if (idx >= 0) return dataVersionInfo.tryNbtBlock.apply(blockEntities[idx].into(blockState));
 			}
 			return dataVersionInfo.tryDefaultBlock.apply(x, y, z, blockState);
 		}
