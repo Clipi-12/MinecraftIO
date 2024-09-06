@@ -20,6 +20,7 @@
 
 package me.clipi.io;
 
+import me.clipi.io.util.function.CheckedRunnable;
 import me.clipi.io.util.function.CheckedSupplier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -39,6 +40,10 @@ public final class OomException extends Exception {
 	public interface OomAware {
 		void trySaveFromOom();
 
+		default void tryRun(@NotNull CheckedRunnable<OomException> memoryExpensiveComputation) throws OomException {
+			tryRun(this, memoryExpensiveComputation);
+		}
+
 		default <R> R tryRun(@NotNull CheckedSupplier<R, OomException> memoryExpensiveComputation) throws OomException {
 			return tryRun(this, memoryExpensiveComputation);
 		}
@@ -46,6 +51,22 @@ public final class OomException extends Exception {
 		@Nullable
 		default <R> R tryRunOrNull(@NotNull CheckedSupplier<@NotNull R, OomException> memoryExpensiveComputation) {
 			return tryRunOrNull(this, memoryExpensiveComputation);
+		}
+
+		static void tryRun(
+			@Nullable OomAware oomAware, @NotNull CheckedRunnable<OomException> memoryExpensiveComputation) throws OomException {
+			try {
+				memoryExpensiveComputation.run();
+			} catch (OomException | OutOfMemoryError ignored) {
+			}
+			if (oomAware != null) {
+				oomAware.trySaveFromOom();
+				try {
+					memoryExpensiveComputation.run();
+				} catch (OutOfMemoryError ignored) {
+				}
+			}
+			throw OomException.INSTANCE;
 		}
 
 		static <R> R tryRun(

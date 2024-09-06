@@ -500,7 +500,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 					R r;
 					try {
 						r = t == null ? null : transform(t, x, y, z, pos);
-					} catch (OomException e) {
+					} catch (OomException ex) {
 						hasErrors[1] = true;
 						return false;
 					}
