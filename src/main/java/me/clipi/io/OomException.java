@@ -20,6 +20,8 @@
 
 package me.clipi.io;
 
+import me.clipi.io.util.function.CheckedConsumer;
+import me.clipi.io.util.function.CheckedFunction;
 import me.clipi.io.util.function.CheckedRunnable;
 import me.clipi.io.util.function.CheckedSupplier;
 import org.jetbrains.annotations.NotNull;
@@ -40,67 +42,127 @@ public final class OomException extends Exception {
 	public interface OomAware {
 		void trySaveFromOom();
 
-		default void tryRun(@NotNull CheckedRunnable<OomException> memoryExpensiveComputation) throws OomException {
-			tryRun(this, memoryExpensiveComputation);
+		default void tryConsume(@NotNull CheckedConsumer<@NotNull OomAware, OomException> memoryExpensiveComputation) throws OomException {
+			try {
+				memoryExpensiveComputation.accept(this);
+				return;
+			} catch (OomException | OutOfMemoryError ignored) {
+			}
+			trySaveFromOom();
+			try {
+				memoryExpensiveComputation.accept(this);
+			} catch (OutOfMemoryError ex) {
+				throw OomException.INSTANCE;
+			}
 		}
 
-		default <R> R tryRun(@NotNull CheckedSupplier<R, OomException> memoryExpensiveComputation) throws OomException {
-			return tryRun(this, memoryExpensiveComputation);
+		default <R> R tryRun(@NotNull CheckedFunction<@NotNull OomAware, R, OomException> memoryExpensiveComputation) throws OomException {
+			try {
+				return memoryExpensiveComputation.apply(this);
+			} catch (OomException | OutOfMemoryError ignored) {
+			}
+			trySaveFromOom();
+			try {
+				return memoryExpensiveComputation.apply(this);
+			} catch (OutOfMemoryError ex) {
+				throw OomException.INSTANCE;
+			}
 		}
 
 		@Nullable
-		default <R> R tryRunOrNull(@NotNull CheckedSupplier<@NotNull R, OomException> memoryExpensiveComputation) {
-			return tryRunOrNull(this, memoryExpensiveComputation);
-		}
-
-		static void tryRun(
-			@Nullable OomAware oomAware, @NotNull CheckedRunnable<OomException> memoryExpensiveComputation) throws OomException {
+		default <R> R tryRunOrNull(@NotNull CheckedFunction<@NotNull OomAware, @NotNull R, OomException> memoryExpensiveComputation) {
 			try {
-				memoryExpensiveComputation.run();
+				return memoryExpensiveComputation.apply(this);
 			} catch (OomException | OutOfMemoryError ignored) {
 			}
-			if (oomAware != null) {
-				oomAware.trySaveFromOom();
-				try {
-					memoryExpensiveComputation.run();
-				} catch (OutOfMemoryError ignored) {
-				}
+			trySaveFromOom();
+			try {
+				return memoryExpensiveComputation.apply(this);
+			} catch (OomException | OutOfMemoryError ex) {
+				return null;
 			}
-			throw OomException.INSTANCE;
 		}
 
-		static <R> R tryRun(
-			@Nullable OomAware oomAware, @NotNull CheckedSupplier<R, OomException> memoryExpensiveComputation) throws OomException {
+		default void tryConsume(@NotNull CheckedRunnable<OomException> memoryExpensiveComputation) throws OomException {
+			try {
+				memoryExpensiveComputation.run();
+				return;
+			} catch (OomException | OutOfMemoryError ignored) {
+			}
+			trySaveFromOom();
+			try {
+				memoryExpensiveComputation.run();
+			} catch (OutOfMemoryError ex) {
+				throw OomException.INSTANCE;
+			}
+		}
+
+		default <R> R tryRun(@NotNull CheckedSupplier<R, OomException> memoryExpensiveComputation) throws OomException {
 			try {
 				return memoryExpensiveComputation.get();
 			} catch (OomException | OutOfMemoryError ignored) {
 			}
+			trySaveFromOom();
+			try {
+				return memoryExpensiveComputation.get();
+			} catch (OutOfMemoryError ex) {
+				throw OomException.INSTANCE;
+			}
+		}
+
+		@Nullable
+		default <R> R tryRunOrNull(@NotNull CheckedSupplier<@NotNull R, OomException> memoryExpensiveComputation) {
+			try {
+				return memoryExpensiveComputation.get();
+			} catch (OomException | OutOfMemoryError ignored) {
+			}
+			trySaveFromOom();
+			try {
+				return memoryExpensiveComputation.get();
+			} catch (OomException | OutOfMemoryError ex) {
+				return null;
+			}
+		}
+
+		static void tryConsume(
+			@Nullable OomAware oomAware, @NotNull CheckedRunnable<OomException> memoryExpensiveComputation) throws OomException {
 			if (oomAware != null) {
-				oomAware.trySaveFromOom();
+				oomAware.tryConsume(memoryExpensiveComputation);
+			} else {
 				try {
-					return memoryExpensiveComputation.get();
-				} catch (OutOfMemoryError ignored) {
+					memoryExpensiveComputation.run();
+				} catch (OutOfMemoryError ex) {
+					throw OomException.INSTANCE;
 				}
 			}
-			throw OomException.INSTANCE;
+		}
+
+		static <R> R tryRun(
+			@Nullable OomAware oomAware, @NotNull CheckedSupplier<R, OomException> memoryExpensiveComputation) throws OomException {
+			if (oomAware != null) {
+				return oomAware.tryRun(memoryExpensiveComputation);
+			} else {
+				try {
+					return memoryExpensiveComputation.get();
+				} catch (OutOfMemoryError ex) {
+					throw OomException.INSTANCE;
+				}
+			}
 		}
 
 		@Nullable
 		static <R> R tryRunOrNull(
 			@Nullable OomAware oomAware,
 			@NotNull CheckedSupplier<@NotNull R, OomException> memoryExpensiveComputation) {
-			try {
-				return memoryExpensiveComputation.get();
-			} catch (OomException | OutOfMemoryError ignored) {
-			}
 			if (oomAware != null) {
-				oomAware.trySaveFromOom();
+				return oomAware.tryRunOrNull(memoryExpensiveComputation);
+			} else {
 				try {
 					return memoryExpensiveComputation.get();
-				} catch (OomException | OutOfMemoryError ignored) {
+				} catch (OomException | OutOfMemoryError ex) {
+					return null;
 				}
 			}
-			return null;
 		}
 	}
 }
