@@ -33,7 +33,7 @@ import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema;
 import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema.SchemaList;
 import me.clipi.io.util.GrowableArray;
 import me.clipi.io.util.VarIntLong;
-import me.clipi.io.util.function.CheckedSupplier;
+import me.clipi.io.util.function.CheckedFunction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
@@ -233,14 +233,14 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 	public @Nullable NbtListOfCompoundsSchema schemaForListOfCompounds(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
 		return "Entities".equals(key) ?
-			entities = schemaList(oomAware, length, EntitySchema.class, () ->
+			entities = schemaList(oomAware, length, EntitySchema.class, oomAware ->
 				new EntitySchema<>(oomAware, tryParseResource)) :
 			null;
 	}
 
 	private static <T extends NbtCompoundSchema, R extends NbtCompoundSchema> SchemaList<R> schemaList(
 		@NotNull OomAware oomAware, int length, @NotNull Class<T> tClass,
-		@NotNull CheckedSupplier<T, OomException> generateSchema) throws OomException {
+		@NotNull CheckedFunction<OomAware, T, OomException> generateSchema) throws OomException {
 		SchemaList<?> raw = SchemaList.create(oomAware, length, tClass, generateSchema);
 		@SuppressWarnings("unchecked")
 		SchemaList<R> res = (SchemaList<R>) raw;
@@ -445,7 +445,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 			@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
 			if ("BlockEntities".equals(key)) {
 				SchemaList<BlockEntitySchema<ResourceType>> listSchema = schemaList(
-					oomAware, length, BlockEntitySchema.class, () ->
+					oomAware, length, BlockEntitySchema.class, oomAware ->
 						new BlockEntitySchema<>(oomAware, tryParseResource, super.xLen, super.zLen, super.yLen));
 				blockEntities = listSchema.schemas;
 				return listSchema;

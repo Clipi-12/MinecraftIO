@@ -94,7 +94,7 @@ public class CheckedBigEndianDataInput<ReadException extends Exception> implemen
 	public long expectLong() throws ReadException, EofException {
 		byte[] longBuffer = this.bufLong;
 		if (reader.readFullyOrTrue(longBuffer)) throw new EofException();
-		return ((longBuffer[0] & 0xFFL) << 56) | ((longBuffer[1] & 0xFFL) << 48) |
+		return (((long) longBuffer[0]) << 56) | ((longBuffer[1] & 0xFFL) << 48) |
 			   ((longBuffer[2] & 0xFFL) << 40) | ((longBuffer[3] & 0xFFL) << 32) |
 			   ((longBuffer[4] & 0xFFL) << 24) | ((longBuffer[5] & 0xFFL) << 16) |
 			   ((longBuffer[6] & 0xFFL) << 8) | (longBuffer[7] & 0xFFL);

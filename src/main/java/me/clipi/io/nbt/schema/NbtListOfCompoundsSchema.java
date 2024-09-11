@@ -23,7 +23,8 @@ package me.clipi.io.nbt.schema;
 import me.clipi.io.OomException;
 import me.clipi.io.OomException.OomAware;
 import me.clipi.io.util.GrowableArray;
-import me.clipi.io.util.function.CheckedSupplier;
+import me.clipi.io.util.function.CheckedFunction;
+import me.clipi.io.util.function.ObjIntCheckedFunction;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
@@ -48,7 +49,7 @@ public interface NbtListOfCompoundsSchema {
 		 */
 		public final T @NotNull [] schemas;
 		private final @NotNull OomAware oomAware;
-		private final CheckedSupplier<T, OomException> generateSchema;
+		private final ObjIntCheckedFunction<OomAware, T, OomException> generateSchema;
 
 		/**
 		 * @param length must be the exact length of the expected list
@@ -57,13 +58,24 @@ public interface NbtListOfCompoundsSchema {
 		public static <T extends NbtCompoundSchema> SchemaList<T> create(
 			@NotNull OomAware oomAware,
 			@Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length,
-			@NotNull Class<T> tClass, @NotNull CheckedSupplier<T, OomException> generateSchema) throws OomException {
+			@NotNull Class<T> tClass, @NotNull CheckedFunction<OomAware, T, OomException> generateSchema) throws OomException {
+			return create(oomAware, length, tClass, (o, value) -> generateSchema.apply(o));
+		}
+
+		/**
+		 * @param length must be the exact length of the expected list
+		 */
+		@NotNull
+		public static <T extends NbtCompoundSchema> SchemaList<T> create(
+			@NotNull OomAware oomAware,
+			@Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length,
+			@NotNull Class<T> tClass, @NotNull ObjIntCheckedFunction<OomAware, T, OomException> generateSchema) throws OomException {
 			return oomAware.tryRun(() -> new SchemaList<>(oomAware, length, tClass, generateSchema));
 		}
 
 		@SuppressWarnings("unchecked")
 		private SchemaList(@NotNull OomAware oomAware, int length, Class<T> tClass,
-						   CheckedSupplier<T, OomException> generateSchema) {
+						   ObjIntCheckedFunction<OomAware, T, OomException> generateSchema) {
 			this.oomAware = oomAware;
 			this.generateSchema = generateSchema;
 			schemas = (T[]) Array.newInstance(tClass, length);
@@ -71,7 +83,7 @@ public interface NbtListOfCompoundsSchema {
 
 		@Override
 		public final @Nullable NbtCompoundSchema schemaForCompound(int index) throws OomException {
-			T schema = oomAware.tryRun(generateSchema);
+			T schema = oomAware.tryRun(o -> generateSchema.accept(o, index));
 			schemas[index] = schema;
 			return schema;
 		}
