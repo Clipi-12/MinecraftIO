@@ -23,6 +23,7 @@ package me.clipi.io.nbt.schema;
 import me.clipi.io.OomException;
 import me.clipi.io.OomException.OomAware;
 import me.clipi.io.util.GrowableArray;
+import me.clipi.io.util.NestedToString;
 import me.clipi.io.util.function.CheckedFunction;
 import me.clipi.io.util.function.ObjIntCheckedFunction;
 import org.jetbrains.annotations.NotNull;
@@ -41,7 +42,7 @@ public interface NbtListOfCompoundsSchema {
 	@Nullable
 	NbtCompoundSchema schemaForCompound(int index) throws OomException;
 
-	class SchemaList<T extends NbtCompoundSchema> implements NbtListOfCompoundsSchema {
+	final class SchemaList<T extends NbtCompoundSchema> implements NbtListOfCompoundsSchema, NestedToString {
 		/**
 		 * All schemas.
 		 *
@@ -82,7 +83,18 @@ public interface NbtListOfCompoundsSchema {
 		}
 
 		@Override
-		public final @Nullable NbtCompoundSchema schemaForCompound(int index) throws OomException {
+		@NotNull
+		public String toString() {
+			return nestedToString();
+		}
+
+		@Override
+		public void toString(@NotNull Nester nester) {
+			nester.append("schemas", schemas);
+		}
+
+		@Override
+		public @Nullable NbtCompoundSchema schemaForCompound(int index) throws OomException {
 			T schema = oomAware.tryRun(o -> generateSchema.accept(o, index));
 			schemas[index] = schema;
 			return schema;

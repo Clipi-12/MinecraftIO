@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Modifier;
+import java.util.Map;
 
 public interface NestedToString {
 	@NotNull
@@ -69,7 +70,7 @@ public interface NestedToString {
 					return;
 				} else {
 					Class<?> prim = MethodType.methodType(objClass).unwrap().returnType();
-					if (!objClass.equals(prim)) {
+					if (objClass != prim) {
 						if (explicitType) str.append(prim.getSimpleName()).append(' ');
 						str.append(obj);
 						return;
@@ -77,27 +78,53 @@ public interface NestedToString {
 				}
 
 				if (explicitType) {
-					String name = objClass.getSimpleName();
-					if (!name.isEmpty()) str.append(name).append(' ');
+					if (objClass.isArray()) {
+						Class<?> componentType = objClass.getComponentType();
+						String componentTypeName = componentType.getSimpleName();
+						int extraDims = 0;
+						for (; componentType.isArray(); componentType = componentType.getComponentType()) ++extraDims;
+						if (componentTypeName.length() != (extraDims + 1) << 1) {
+							if (extraDims == 0) {
+								str.append(componentTypeName).append(' ');
+							} else {
+								str.append(objClass.getSimpleName()).append(" -> ");
+							}
+						}
+					} else {
+						String name = objClass.getSimpleName();
+						if (!name.isEmpty()) str.append(name).append(' ');
+					}
 				}
 				if (obj instanceof NestedToString) {
-					appendComposite('{', '}', () -> ((NestedToString) obj).toString(this));
+					appendComposite('{', '}', false, () -> ((NestedToString) obj).toString(this));
 					return;
-				} else if (obj instanceof Iterable | objClass.isArray()) {
-					Iterable<?> iter;
-					boolean showEachElementType;
-					if (objClass.isArray()) {
-						showEachElementType = !Modifier.isFinal(objClass.getComponentType().getModifiers());
-						iter = BoxedArrayIterable.infer(obj);
-					} else {
-						showEachElementType = true;
-						iter = (Iterable<?>) obj;
-					}
-					appendComposite('[', ']', () -> iter.forEach(o -> {
+				} else if (obj instanceof Map) {
+					appendComposite('{', '}', false, () -> ((Map<?, ?>) obj).forEach(this::append));
+					return;
+				} else if (obj instanceof Iterable) {
+					appendComposite('[', ']', false, () -> ((Iterable<?>) obj).forEach(o -> {
 						nlTabs();
-						append(o, showEachElementType);
+						append(o, true);
 						str.append(',');
 					}));
+					return;
+				} else if (objClass.isArray()) {
+					Class<?> componentType = objClass.getComponentType();
+					if (String.class == componentType ||
+						MethodType.methodType(componentType).hasPrimitives() ||
+						// also inline-print arrays of nullable primitives
+						MethodType.methodType(componentType).unwrap().hasPrimitives()
+					) {
+						appendComposite('[', ']', true, () -> BoxedArrayIterable.infer(obj).forEach(
+							o -> str.append(o).append(", ")));
+					} else {
+						boolean showEachElementType = !Modifier.isFinal(componentType.getModifiers());
+						appendComposite('[', ']', false, () -> BoxedArrayIterable.create((Object[]) obj).forEach(o -> {
+							nlTabs();
+							append(o, showEachElementType);
+							str.append(',');
+						}));
+					}
 					return;
 				}
 			}
@@ -105,7 +132,7 @@ public interface NestedToString {
 			str.append(obj);
 		}
 
-		private void appendComposite(char open, char close, @NotNull Runnable writeInner) {
+		private void appendComposite(char open, char close, boolean inline, @NotNull Runnable writeInner) {
 			str.append(open);
 			int lengthBefore = str.length();
 			++depth;
@@ -113,8 +140,10 @@ public interface NestedToString {
 			--depth;
 			if (str.length() == lengthBefore) {
 				str.append(' ');
+			} else if (inline) {
+				str.delete(str.length() - 2, Integer.MAX_VALUE); // delete last ", "
 			} else {
-				str.deleteCharAt(str.length() - 1);
+				str.deleteCharAt(str.length() - 1); // delete last ','
 				nlTabs();
 			}
 			str.append(close);

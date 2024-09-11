@@ -63,7 +63,7 @@ public class NestedListsTest {
 				"""
 				%scomponent type: NbtType List,
 				%ssize: int 4,
-				%sarray: NbtList[] [
+				%sarray: NbtList [
 				%s	{
 				""".formatted(prefix, prefix, prefix, prefix));
 		};
@@ -90,7 +90,7 @@ public class NestedListsTest {
 						"""
 						%scomponent type: NbtType Compound,
 						%ssize: int 4,
-						%sarray: NbtCompound[] [
+						%sarray: NbtCompound [
 						%s	{
 						""".formatted(t3, t3, t3, t3));
 					for (int l = 0; l < 4; ++l) {
@@ -124,11 +124,11 @@ public class NestedListsTest {
 					\t					key #%d of compound #%d: NbtList {
 												component type: NbtType List,
 												size: int 2,
-												array: NbtList[] [
+												array: NbtList [
 													{
 														component type: NbtType Compound,
 														size: int 2,
-														array: NbtCompound[] [
+														array: NbtCompound [
 															{
 																k1: int %d,
 																k2: int %d
@@ -142,10 +142,7 @@ public class NestedListsTest {
 													{
 														component type: NbtType Int,
 														size: int 2,
-														array: int[] [
-															%d,
-															%d
-														]
+														array: int [%d, %d]
 													}
 												]
 											}""".formatted(i, compound,
@@ -163,7 +160,7 @@ public class NestedListsTest {
 						compound #0: NbtList {
 							component type: NbtType Compound,
 							size: int 4,
-							array: NbtCompound[] [
+							array: NbtCompound [
 								{
 			%s
 								},
@@ -181,7 +178,7 @@ public class NestedListsTest {
 						compound #1: NbtList {
 							component type: NbtType Compound,
 							size: int 4,
-							array: NbtCompound[] [
+							array: NbtCompound [
 								{
 			%s
 								},
@@ -199,7 +196,7 @@ public class NestedListsTest {
 						compound #2: NbtList {
 							component type: NbtType Compound,
 							size: int 4,
-							array: NbtCompound[] [
+							array: NbtCompound [
 								{
 			%s
 								},
@@ -217,7 +214,7 @@ public class NestedListsTest {
 						compound #3: NbtList {
 							component type: NbtType Compound,
 							size: int 4,
-							array: NbtCompound[] [
+							array: NbtCompound [
 								{
 			%s
 								},

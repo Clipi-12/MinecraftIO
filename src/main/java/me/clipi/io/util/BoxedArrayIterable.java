@@ -27,7 +27,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 public abstract class BoxedArrayIterable<T> implements Iterable<T> {
-	private final int len;
+	public final int len;
 
 	private BoxedArrayIterable(int len) {
 		this.len = len;
@@ -70,7 +70,7 @@ public abstract class BoxedArrayIterable<T> implements Iterable<T> {
 
 
 	public static final class GenericArrayIterable<T> extends BoxedArrayIterable<T> {
-		private final T @NotNull [] array;
+		public final T @NotNull [] array;
 
 		private GenericArrayIterable(T @NotNull [] array) {
 			super(array.length);
@@ -103,7 +103,7 @@ public abstract class BoxedArrayIterable<T> implements Iterable<T> {
 	}
 
 	public static final class BoxedPrimitiveArrayIterable<T> extends BoxedArrayIterable<T> {
-		private final @NotNull Object array;
+		public final @NotNull Object array;
 
 		private BoxedPrimitiveArrayIterable(@NotNull Object array) {
 			super(Array.getLength(array));
