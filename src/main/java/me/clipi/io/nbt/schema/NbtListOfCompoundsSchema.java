@@ -62,17 +62,17 @@ public interface NbtListOfCompoundsSchema {
 		/**
 		 * @param length must be the exact length of the expected list
 		 */
-		public static @NotNull <T extends NbtCompoundSchema> ListOfSchemas<T, T> createWithoutDuplicates(
+		public static @NotNull <T extends NbtCompoundSchema> ListOfSchemas<T, T> createDistinctSchemas(
 			@NotNull OomAware oomAware, @NotNull Class<T> tClass,
 			@Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length,
 			@NotNull CheckedFunction<@NotNull OomAware, @Nullable T, OomException> generateSchema) throws OomException {
-			return createWithoutDuplicates(oomAware, tClass, length, (o, i) -> generateSchema.apply(o));
+			return createDistinctSchemas(oomAware, tClass, length, (o, i) -> generateSchema.apply(o));
 		}
 
 		/**
 		 * @param length must be the exact length of the expected list
 		 */
-		public static @NotNull <T extends NbtCompoundSchema> ListOfSchemas<T, T> createWithoutDuplicates(
+		public static @NotNull <T extends NbtCompoundSchema> ListOfSchemas<T, T> createDistinctSchemas(
 			@NotNull OomAware oomAware, @NotNull Class<T> tClass,
 			@Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length,
 			@NotNull ObjIntCheckedFunction<@NotNull OomAware, @Nullable T, OomException> generateSchema) throws OomException {
