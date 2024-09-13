@@ -67,7 +67,7 @@ public class SaveCompoundSchema extends AllowAllCompoundSchema {
 	@Nullable
 	public NbtListOfCompoundsSchema schemaForListOfCompounds(
 		@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-		return oomAware.tryRun(() -> new ListOfCompounds(oomAware, new NbtCompound[length]));
+		return NbtListOfCompoundsSchema.ListOfSchemas.save(oomAware, length);
 	}
 
 	@Override
@@ -92,50 +92,7 @@ public class SaveCompoundSchema extends AllowAllCompoundSchema {
 		@NotNull
 		public NbtListOfCompoundsSchema schemaForListOfCompounds(
 			int index, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-			return oomAware.tryRun(() -> new ListOfCompounds(oomAware, new NbtCompound[length]));
-		}
-	}
-
-	public static class ListOfCompounds implements NbtListOfCompoundsSchema {
-		protected final @NotNull OomAware oomAware;
-		final @NotNull NbtCompound @NotNull [] array;
-
-		private final int lastIdx;
-		private boolean isAvailableToParent;
-
-		private ListOfCompounds(@NotNull OomAware oomAware, @NotNull NbtCompound @NotNull [] array) {
-			this.oomAware = oomAware;
-			this.array = array;
-			lastIdx = array.length - 1;
-		}
-
-		private static @NotNull NbtCompound @NotNull [] createArrayAssertLen(@NotNull OomAware oomAware, int length) throws OomException {
-			if (length <= 0 | length > GrowableArray.MAX_ARRAY_SIZE)
-				throw new IllegalArgumentException("Illegal NBT List length: " + length);
-			return oomAware.tryRun(() -> new NbtCompound[length]);
-		}
-
-		protected ListOfCompounds(
-			@NotNull OomAware oomAware, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
-			this(oomAware, createArrayAssertLen(oomAware, length));
-		}
-
-		@NotNull
-		protected SaveCompoundSchema createNewSchema() throws OomException {
-			return SaveCompoundSchema.create(oomAware);
-		}
-
-		protected @NotNull NbtCompound @Nullable [] getAsArrayIfCompletelyParsed() {
-			return isAvailableToParent ? array : null;
-		}
-
-		@Override
-		@NotNull
-		public final SaveCompoundSchema schemaForCompound(int index) throws OomException {
-			isAvailableToParent = index == lastIdx;
-			SaveCompoundSchema schema = createNewSchema();
-			array[index] = schema.compound;
-			return schema;
+			return NbtListOfCompoundsSchema.ListOfSchemas.save(oomAware, length);
 		}
 	}
 }

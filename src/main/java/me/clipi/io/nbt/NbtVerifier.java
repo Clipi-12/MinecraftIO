@@ -317,9 +317,17 @@ public class NbtVerifier {
 			final int len = array.length;
 			int i = target.savedIndex;
 			for (; ; ) {
-				if (i >= len) {
-					VerifyingTarget parent;
+				if (i == len) {
+					try {
+						if (schema.deniesFinishedList())
+							throw new NbtParseException.IncorrectSchema(schema);
+					} catch (NbtParseException.IncorrectSchema ex) {
+						throw ex;
+					} catch (NbtParseException | NbtKeyNotFoundException cause) {
+						throw new NbtParseException.IncorrectSchema(cause);
+					}
 
+					VerifyingTarget parent;
 					try {
 						nestedTarget.pop(); // pop self
 						parent = nestedTarget.peek();
@@ -333,7 +341,7 @@ public class NbtVerifier {
 					target = (ListOfListsTarget) parent;
 					continue newTarget;
 				}
-
+				assert i < len;
 
 				NbtList obj = array[i];
 				Object list = obj.array;
@@ -542,7 +550,18 @@ public class NbtVerifier {
 			super.oCount = 0;
 			int i = this.i++;
 			NbtCompound[] compounds = this.compounds;
-			if (i >= compounds.length) return true;
+			if (i == compounds.length) {
+				try {
+					if (parentSchema.deniesFinishedList())
+						throw new NbtParseException.IncorrectSchema(parentSchema);
+				} catch (NbtParseException.IncorrectSchema ex) {
+					throw ex;
+				} catch (NbtParseException | NbtKeyNotFoundException cause) {
+					throw new NbtParseException.IncorrectSchema(cause);
+				}
+				return true;
+			}
+			assert i < compounds.length;
 			super.schema = nonNullSchema(parentSchema, parentSchema.schemaForCompound(i));
 			super.compound = compounds[i];
 			return false;

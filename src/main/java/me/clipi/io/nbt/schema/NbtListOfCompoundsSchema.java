@@ -22,19 +22,39 @@ package me.clipi.io.nbt.schema;
 
 import me.clipi.io.OomException;
 import me.clipi.io.OomException.OomAware;
+import me.clipi.io.nbt.NbtCompound;
+import me.clipi.io.nbt.SaveCompoundSchema;
+import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
+import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.util.GrowableArray;
 import me.clipi.io.util.NestedToString;
 import me.clipi.io.util.function.CheckedFunction;
 import me.clipi.io.util.function.ObjIntCheckedFunction;
+import org.jetbrains.annotations.MustBeInvokedByOverriders;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
+import java.util.Objects;
 
 public interface NbtListOfCompoundsSchema {
 	@NotNull
-	NbtListOfCompoundsSchema ALWAYS = index -> NbtCompoundSchema.ALWAYS;
+	NbtListOfCompoundsSchema ALWAYS = new NbtListOfCompoundsSchema() {
+		@Override
+		public boolean deniesFinishedList() {
+			return false;
+		}
+
+		@Override
+		@NotNull
+		public NbtCompoundSchema schemaForCompound(int index) {
+			return NbtCompoundSchema.ALWAYS;
+		}
+	};
+
+	boolean deniesFinishedList() throws OomException, NbtParseException, NbtKeyNotFoundException;
 
 	/**
 	 * @return The schema for the specified compound, or {@code null} if the compound is not allowed.
@@ -42,44 +62,101 @@ public interface NbtListOfCompoundsSchema {
 	@Nullable
 	NbtCompoundSchema schemaForCompound(int index) throws OomException;
 
-	final class SchemaList<T extends NbtCompoundSchema> implements NbtListOfCompoundsSchema, NestedToString {
-		/**
-		 * All schemas.
-		 *
-		 * <p>None of the elements will be null once the list has been parsed.
-		 */
-		public final T @NotNull [] schemas;
-		private final @NotNull OomAware oomAware;
-		private final ObjIntCheckedFunction<OomAware, T, OomException> generateSchema;
+	abstract class ListOfSchemas<T extends NbtCompoundSchema, R> implements NbtListOfCompoundsSchema, NestedToString {
+		protected final int length;
+		private final R @NotNull [] array;
+		protected final @NotNull OomAware oomAware;
 
 		/**
 		 * @param length must be the exact length of the expected list
 		 */
-		@NotNull
-		public static <T extends NbtCompoundSchema> SchemaList<T> create(
-			@NotNull OomAware oomAware,
+		public static @NotNull <T extends NbtCompoundSchema> ListOfSchemas<T, T> createWithoutDuplicates(
+			@NotNull OomAware oomAware, @NotNull Class<T> tClass,
 			@Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length,
-			@NotNull Class<T> tClass, @NotNull CheckedFunction<OomAware, T, OomException> generateSchema) throws OomException {
-			return create(oomAware, length, tClass, (o, value) -> generateSchema.apply(o));
+			@NotNull CheckedFunction<@NotNull OomAware, @Nullable T, OomException> generateSchema) throws OomException {
+			return createWithoutDuplicates(oomAware, tClass, length, (o, i) -> generateSchema.apply(o));
 		}
 
 		/**
 		 * @param length must be the exact length of the expected list
 		 */
-		@NotNull
-		public static <T extends NbtCompoundSchema> SchemaList<T> create(
-			@NotNull OomAware oomAware,
+		public static @NotNull <T extends NbtCompoundSchema> ListOfSchemas<T, T> createWithoutDuplicates(
+			@NotNull OomAware oomAware, @NotNull Class<T> tClass,
 			@Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length,
-			@NotNull Class<T> tClass, @NotNull ObjIntCheckedFunction<OomAware, T, OomException> generateSchema) throws OomException {
-			return oomAware.tryRun(() -> new SchemaList<>(oomAware, length, tClass, generateSchema));
+			@NotNull ObjIntCheckedFunction<@NotNull OomAware, @Nullable T, OomException> generateSchema) throws OomException {
+			return length == 1 ?
+				create(oomAware, tClass, length, generateSchema) :
+				oomAware.tryRun(() -> new ListOfDistinctSchemas<T, T>(oomAware, tClass, length) {
+					@Override
+					protected @Nullable T generateDistinctSchema(@NotNull OomAware oomAware, int index) throws OomException {
+						return generateSchema.accept(oomAware, index);
+					}
+
+					@Override
+					protected @NotNull T mapSchema(@NotNull T schema) {
+						return schema;
+					}
+				});
+		}
+
+		/**
+		 * @param length must be the exact length of the expected list
+		 */
+		public static @NotNull <T extends NbtCompoundSchema> ListOfSchemas<T, T> create(
+			@NotNull OomAware oomAware, @NotNull Class<T> tClass,
+			@Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length,
+			@NotNull CheckedFunction<@NotNull OomAware, @Nullable T, OomException> generateSchema) throws OomException {
+			return create(oomAware, tClass, length, (o, i) -> generateSchema.apply(o));
+		}
+
+		/**
+		 * @param length must be the exact length of the expected list
+		 */
+		public static @NotNull <T extends NbtCompoundSchema> ListOfSchemas<T, T> create(
+			@NotNull OomAware oomAware, @NotNull Class<T> tClass,
+			@Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length,
+			@NotNull ObjIntCheckedFunction<@NotNull OomAware, @Nullable T, OomException> generateSchema) throws OomException {
+			return oomAware.tryRun(() -> new ListOfSchemas<T, T>(oomAware, tClass, length) {
+				@Override
+				protected @Nullable T generateSchema(@NotNull OomAware oomAware, int index) throws OomException {
+					return generateSchema.accept(oomAware, index);
+				}
+
+				@Override
+				protected @NotNull T mapSchema(@NotNull T schema) {
+					return schema;
+				}
+			});
+		}
+
+		/**
+		 * @param length must be the exact length of the expected list
+		 */
+		public static @NotNull ListOfSchemas<SaveCompoundSchema, NbtCompound> save(
+			@NotNull OomAware oomAware, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
+			return oomAware.tryRun(() -> new ListOfSchemas<SaveCompoundSchema, NbtCompound>(
+				oomAware, NbtCompound.class, length) {
+				@Override
+				@NotNull
+				protected SaveCompoundSchema generateSchema(@NotNull OomAware oomAware, int index) throws OomException {
+					return SaveCompoundSchema.create(oomAware);
+				}
+
+				@Override
+				protected @NotNull NbtCompound mapSchema(@NotNull SaveCompoundSchema schema) {
+					return schema.compound;
+				}
+			});
 		}
 
 		@SuppressWarnings("unchecked")
-		private SchemaList(@NotNull OomAware oomAware, int length, Class<T> tClass,
-						   ObjIntCheckedFunction<OomAware, T, OomException> generateSchema) {
+		public ListOfSchemas(@NotNull OomAware oomAware, @NotNull Class<R> rClass,
+							 @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) {
+			// noinspection ConstantValue
+			if (length <= 0) throw new IllegalArgumentException();
+			this.length = length;
 			this.oomAware = oomAware;
-			this.generateSchema = generateSchema;
-			schemas = (T[]) Array.newInstance(tClass, length);
+			array = (R[]) Array.newInstance(rClass, length);
 		}
 
 		@Override
@@ -90,14 +167,97 @@ public interface NbtListOfCompoundsSchema {
 
 		@Override
 		public void toString(@NotNull Nester nester) {
-			nester.append("schemas", schemas);
+			nester.append("schemas", array);
 		}
 
 		@Override
-		public @Nullable NbtCompoundSchema schemaForCompound(int index) throws OomException {
-			T schema = oomAware.tryRun(o -> generateSchema.accept(o, index));
-			schemas[index] = schema;
+		public boolean deniesFinishedList() throws OomException, NbtParseException, NbtKeyNotFoundException {
+			return false;
+		}
+
+		protected abstract @Nullable T generateSchema(@NotNull OomAware oomAware, int index) throws OomException;
+
+		protected abstract @NotNull R mapSchema(@NotNull T schema);
+
+		@Override
+		public @Nullable T schemaForCompound(int index) throws OomException {
+			T schema = oomAware.tryRun(o -> generateSchema(o, index));
+			if (schema != null) array[index] = Objects.requireNonNull(mapSchema(schema));
 			return schema;
+		}
+
+		/**
+		 * The mutable array with all the schemas' objects.
+		 *
+		 * <p>None of the elements will be null once the list has been parsed.
+		 */
+		public @Nullable R @NotNull [] nullableElements() {
+			return array;
+		}
+
+		/**
+		 * The mutable array with all the schemas' objects.
+		 *
+		 * <p>Either none of the elements are null, or the array itself is null.
+		 */
+		public @NotNull R @Nullable [] elementsOrNull() {
+			return array[array.length - 1] == null ? null : array;
+		}
+	}
+
+	abstract class ListOfDistinctSchemas<T extends NbtCompoundSchema, R> extends ListOfSchemas<T, R> {
+		// T[] to save the objects by their hash, as a fixed mini-hash-set
+		// The extra object is not part of the mini-hash-set, but the value of the last schema, so that the hashcode
+		// is only computed once it is finished
+		private final Object[] eqs;
+
+		private ListOfDistinctSchemas(@NotNull OomAware oomAware, Class<R> rClass, int length) {
+			super(oomAware, rClass, length);
+			eqs = new Object[length + 1];
+		}
+
+		protected abstract @Nullable T generateDistinctSchema(@NotNull OomAware oomAware, int index) throws OomException;
+
+		@Override
+		@MustBeInvokedByOverriders
+		public boolean deniesFinishedList() throws OomException, NbtParseException, NbtKeyNotFoundException {
+			return denyLast(eqs[length]);
+		}
+
+		@Override
+		protected final @Nullable T generateSchema(@NotNull OomAware oomAware, int index) throws OomException {
+			T res = generateDistinctSchema(oomAware, index);
+			if (res == null) return null;
+			Object last = eqs[length];
+			eqs[length] = res;
+			return last != null && denyLast(last) ? null : res;
+		}
+
+		private boolean denyLast(@NotNull Object last) {
+			final int length = this.length;
+			final int hash = last.hashCode();
+			final int hashIdx = (hash >> 16) % length;
+			Object[] eqs = this.eqs;
+
+			for (int idx = hashIdx; idx >= 0; --idx) {
+				Object e = eqs[idx];
+				if (e == null) {
+					eqs[idx] = last;
+					return false;
+				}
+				if (e.hashCode() == hash && last.equals(e)) return true;
+			}
+			for (int idx = length - 1; idx > hashIdx; --idx) {
+				Object e = eqs[idx];
+				if (e == null) {
+					eqs[idx] = last;
+					return false;
+				}
+				if (e.hashCode() == hash && last.equals(e)) return true;
+			}
+			throw new IllegalStateException(String.format(
+				"More than %d schemas were provided.%nExtra element: %s%nCurrent elements: %s",
+				length, last, Arrays.toString(nullableElements())));
 		}
 	}
 }

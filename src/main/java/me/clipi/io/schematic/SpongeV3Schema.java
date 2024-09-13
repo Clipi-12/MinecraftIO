@@ -30,7 +30,7 @@ import me.clipi.io.nbt.schema.DelegatedCompoundSchema;
 import me.clipi.io.nbt.schema.DenyAllCompoundSchema;
 import me.clipi.io.nbt.schema.NbtCompoundSchema;
 import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema;
-import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema.SchemaList;
+import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema.ListOfSchemas;
 import me.clipi.io.util.GrowableArray;
 import me.clipi.io.util.VarIntLong;
 import me.clipi.io.util.function.CheckedFunction;
@@ -94,7 +94,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 	private @Range(from = 0, to = (1 << 16) - 1) int xLen, yLen, zLen;
 	private @Nullable DelegatedCompoundSchema<BlocksSchema> blocks;
 	private @Nullable DelegatedCompoundSchema<BiomesSchema> biomes;
-	private @Nullable SchemaList<EntitySchema<ResourceType>> entities;
+	private @Nullable NbtListOfCompoundsSchema.ListOfSchemas<?, EntitySchema<ResourceType>> entities;
 
 	Schematic<BlockType, BiomeType, EntityType> schematic;
 
@@ -105,7 +105,7 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 			  .append("dimensions", new int[] { xLen, yLen, zLen })
 			  .append("blocks", blocks)
 			  .append("biomes", biomes)
-			  .append("entities", entities == null ? null : entities.schemas);
+			  .append("entities", entities == null ? null : entities.nullableElements());
 	}
 
 	@Nullable
@@ -122,10 +122,10 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 		if (this.entities == null) {
 			entities = null;
 		} else {
-			EntitySchema<ResourceType>[] schemas = this.entities.schemas;
-			int i = schemas.length;
-			entities = (EntityType[]) Array.newInstance(entityClass, i);
-			while (--i >= 0) {
+			EntitySchema<ResourceType>[] schemas = this.entities.elementsOrNull();
+			assert schemas != null;
+			entities = oomAware.tryRun(() -> (EntityType[]) Array.newInstance(entityClass, schemas.length));
+			for (int i = schemas.length - 1; i >= 0; --i) {
 				int finalI = i;
 				entities[i] = oomAware.tryRun(() -> dataVersionInfo.tryParseEntity.apply(schemas[finalI].into()));
 			}
@@ -238,12 +238,12 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 			null;
 	}
 
-	private static <T extends NbtCompoundSchema, R extends NbtCompoundSchema> SchemaList<R> schemaList(
+	private static <T extends NbtCompoundSchema, R extends NbtCompoundSchema> ListOfSchemas<?, R> schemaList(
 		@NotNull OomAware oomAware, int length, @NotNull Class<T> tClass,
 		@NotNull CheckedFunction<OomAware, T, OomException> generateSchema) throws OomException {
-		SchemaList<?> raw = SchemaList.create(oomAware, length, tClass, generateSchema);
+		ListOfSchemas<?, ?> raw = ListOfSchemas.create(oomAware, tClass, length, generateSchema);
 		@SuppressWarnings("unchecked")
-		SchemaList<R> res = (SchemaList<R>) raw;
+		ListOfSchemas<?, R> res = (ListOfSchemas<?, R>) raw;
 		return res;
 	}
 
@@ -444,10 +444,10 @@ public class SpongeV3Schema<ResourceType, BlockStateType, BlockType, BiomeType, 
 		public @Nullable NbtListOfCompoundsSchema schemaForListOfCompounds(
 			@NotNull String key, @Range(from = 1, to = GrowableArray.MAX_ARRAY_SIZE) int length) throws OomException {
 			if ("BlockEntities".equals(key)) {
-				SchemaList<BlockEntitySchema<ResourceType>> listSchema = schemaList(
+				ListOfSchemas<?, BlockEntitySchema<ResourceType>> listSchema = schemaList(
 					oomAware, length, BlockEntitySchema.class, oomAware ->
 						new BlockEntitySchema<>(oomAware, tryParseResource, super.xLen, super.zLen, super.yLen));
-				blockEntities = listSchema.schemas;
+				blockEntities = listSchema.nullableElements();
 				return listSchema;
 			}
 			return null;

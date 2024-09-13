@@ -21,6 +21,8 @@
 package me.clipi.io.nbt.schema;
 
 import me.clipi.io.OomException;
+import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
+import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.util.GrowableArray;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,6 +31,11 @@ import org.jetbrains.annotations.Range;
 @SuppressWarnings("RedundantThrows")
 public abstract class AllowAllListOfListsSchema implements NbtListOfListsSchema {
 	protected AllowAllListOfListsSchema() {
+	}
+
+	@Override
+	public boolean deniesFinishedList() throws OomException, NbtParseException, NbtKeyNotFoundException {
+		return false;
 	}
 
 	@Override

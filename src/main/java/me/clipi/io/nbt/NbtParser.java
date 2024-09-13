@@ -28,6 +28,7 @@ import me.clipi.io.OomException.OomAware;
 import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
 import me.clipi.io.nbt.exceptions.NbtParseException;
 import me.clipi.io.nbt.schema.*;
+import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema.ListOfSchemas;
 import me.clipi.io.util.FixedStack;
 import me.clipi.io.util.GrowableArray;
 import me.clipi.io.util.function.CheckedConsumer;
@@ -289,9 +290,17 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			final int len = array.length, stackSize = nestedTarget.getSize();
 			int i = target.savedIndex;
 			for (; ; ) {
-				if (i >= len) {
-					ParsingTarget parent;
+				if (i == len) {
+					try {
+						if (schema.deniesFinishedList())
+							throw new NbtParseException.IncorrectSchema(schema);
+					} catch (NbtParseException.IncorrectSchema ex) {
+						throw ex;
+					} catch (NbtParseException | NbtKeyNotFoundException cause) {
+						throw new NbtParseException.IncorrectSchema(cause);
+					}
 
+					ParsingTarget parent;
 					try {
 						nestedTarget.pop(); // pop self
 						parent = nestedTarget.peek();
@@ -312,6 +321,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 					target = parentAsList;
 					continue newTarget;
 				}
+				assert i < len;
 
 				int finalI = i;
 				++i;
@@ -344,24 +354,24 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	 * An array of {@link ValuelessNbtCompound} will be created, and each of those will be added to the top of the
 	 * stack as {@link CompoundTarget}s, so that they can be parsed.
 	 * <p>If the corresponding {@link NbtListOfCompoundsSchema} is an instance of
-	 * {@link SaveCompoundSchema.ListOfCompounds}, the mentioned {@link ValuelessNbtCompound}s will be
-	 * {@link NbtCompound}s, and a {@link NbtList} of them will be handled when all finish parsing. Otherwise, an
-	 * empty list will be handled when all have finished parsing.
+	 * {@link ListOfSchemas} and its elements are {@link NbtCompound}s, those will be the mentioned
+	 * {@link ValuelessNbtCompound}s, and a {@link NbtList} of them will be handled when all finish parsing.
+	 * Otherwise, an empty list will be handled when all have finished parsing.
 	 */
 	private void readListOfCompoundsValue(@NotNull NbtListOfCompoundsSchema schema, int len,
 										  @NotNull CheckedConsumer<NbtList, OomException> onFinish)
 		throws ReadException, OomException, EofException, FixedStack.FullStackException, NbtParseException {
 		NbtList result;
 		ValuelessNbtCompound[] valuelessCompounds;
-		if (schema instanceof SaveCompoundSchema.ListOfCompounds) {
-			NbtCompound[] compounds = ((SaveCompoundSchema.ListOfCompounds) schema).array;
+		if (schema instanceof ListOfSchemas &&
+			((ListOfSchemas<?, ?>) schema).nullableElements() instanceof NbtCompound[]) {
+			@SuppressWarnings("unchecked")
+			NbtCompound[] compounds = ((ListOfSchemas<?, NbtCompound>) schema).nullableElements();
 			valuelessCompounds = compounds;
 			result = NbtList.emptyUnsafeCreate(oomAware, compounds);
 		} else {
-			valuelessCompounds = readGenericArray(len, ValuelessNbtCompound[]::new, i ->
-				// Wrap in OomAware.tryRun because there may be a lot of instances
-				ValuelessNbtCompound.create(oomAware)
-			);
+			valuelessCompounds = readGenericArray(len, ValuelessNbtCompound[]::new,
+												  i -> ValuelessNbtCompound.create(oomAware));
 			result = NbtList.EMPTY_LIST;
 		}
 		ListOfCompoundsTarget newTarget =
@@ -379,9 +389,9 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	 * <p>If the parsed NBT List is a List of Maps, an array of {@link ValuelessNbtCompound} will be created, and
 	 * each of those will be added to the top of the stack as {@link CompoundTarget}s, so that they can be parsed.
 	 * If the corresponding {@link NbtListOfCompoundsSchema} is an instance of
-	 * {@link SaveCompoundSchema.ListOfCompounds}, the mentioned {@link ValuelessNbtCompound}s will be
-	 * {@link NbtCompound}s, and a {@link NbtList} of them will be handled when all finish parsing. Otherwise, an
-	 * empty list will be handled when all have finished parsing.
+	 * {@link ListOfSchemas} and its elements are {@link NbtCompound}s, those will be the mentioned
+	 * {@link ValuelessNbtCompound}s, and a {@link NbtList} of them will be handled when all finish parsing.
+	 * Otherwise, an empty list will be handled when all have finished parsing.
 	 */
 	private boolean readListValue(int index, @NotNull NbtListOfListsSchema parentSchema,
 								  @NotNull CheckedConsumer<@NotNull NbtList, OomException> handleList)
@@ -494,9 +504,9 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	 * <p>If the parsed NBT List is a List of Maps, an array of {@link ValuelessNbtCompound} will be created, and
 	 * each of those will be added to the top of the stack as {@link CompoundTarget}s, so that they can be parsed.
 	 * If the corresponding {@link NbtListOfCompoundsSchema} is an instance of
-	 * {@link SaveCompoundSchema.ListOfCompounds}, the mentioned {@link ValuelessNbtCompound}s will be
-	 * {@link NbtCompound}s, and a {@link NbtList} of them will be handled when all finish parsing. Otherwise, an
-	 * empty list will be handled when all have finished parsing.
+	 * {@link ListOfSchemas} and its elements are {@link NbtCompound}s, those will be the mentioned
+	 * {@link ValuelessNbtCompound}s, and a {@link NbtList} of them will be handled when all finish parsing.
+	 * Otherwise, an empty list will be handled when all have finished parsing.
 	 */
 	private boolean readListValue(@NotNull String key, @NotNull NbtCompoundSchema parentSchema,
 								  @NotNull CheckedConsumer<@NotNull NbtList, OomException> handleList)
@@ -753,6 +763,14 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			int i = this.i++;
 			ValuelessNbtCompound[] compounds = this.compounds;
 			if (i == compounds.length) {
+				try {
+					if (parentSchema.deniesFinishedList())
+						throw new NbtParseException.IncorrectSchema(parentSchema);
+				} catch (NbtParseException.IncorrectSchema ex) {
+					throw ex;
+				} catch (NbtParseException | NbtKeyNotFoundException cause) {
+					throw new NbtParseException.IncorrectSchema(cause);
+				}
 				onFinish.run();
 				return true;
 			}
