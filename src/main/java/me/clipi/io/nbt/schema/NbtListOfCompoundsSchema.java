@@ -39,22 +39,14 @@ import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Objects;
 
+@FunctionalInterface
 public interface NbtListOfCompoundsSchema {
 	@NotNull
-	NbtListOfCompoundsSchema ALWAYS = new NbtListOfCompoundsSchema() {
-		@Override
-		public boolean deniesFinishedList() {
-			return false;
-		}
+	NbtListOfCompoundsSchema ALWAYS = i -> NbtCompoundSchema.ALWAYS;
 
-		@Override
-		@NotNull
-		public NbtCompoundSchema schemaForCompound(int index) {
-			return NbtCompoundSchema.ALWAYS;
-		}
-	};
-
-	boolean deniesFinishedList() throws OomException, NbtParseException, NbtKeyNotFoundException;
+	default boolean deniesFinishedList() throws OomException, NbtParseException, NbtKeyNotFoundException {
+		return false;
+	}
 
 	/**
 	 * @return The schema for the specified compound, or {@code null} if the compound is not allowed.
@@ -168,11 +160,6 @@ public interface NbtListOfCompoundsSchema {
 		@Override
 		public void toString(@NotNull Nester nester) {
 			nester.append("schemas", array);
-		}
-
-		@Override
-		public boolean deniesFinishedList() throws OomException, NbtParseException, NbtKeyNotFoundException {
-			return false;
 		}
 
 		protected abstract @Nullable T generateSchema(@NotNull OomAware oomAware, int index) throws OomException;
