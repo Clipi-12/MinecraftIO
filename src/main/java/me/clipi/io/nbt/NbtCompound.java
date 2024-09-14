@@ -181,7 +181,7 @@ public final class NbtCompound extends ValuelessNbtCompound implements NestedToS
 	private int indexForKeyWithTypeOrThrow(@NotNull String key, byte nbtType)
 		throws NbtParseException.UnexpectedTagType, NbtKeyNotFoundException {
 		int i = indexForKeyWithTypeOrNeg(key, nbtType);
-		if (i < 0) throw new NbtKeyNotFoundException(key, this);
+		if (i < 0) throw new NbtKeyNotFoundException(oomAware, key, this);
 		return i;
 	}
 
@@ -240,7 +240,7 @@ public final class NbtCompound extends ValuelessNbtCompound implements NestedToS
 	private <T> T getObjectOrThrow(@NotNull String key, byte nbtType) throws NbtParseException.UnexpectedTagType,
 																			 NbtKeyNotFoundException {
 		T res = getObjectOrNull(key, nbtType);
-		if (res == null) throw new NbtKeyNotFoundException(key, this);
+		if (res == null) throw new NbtKeyNotFoundException(oomAware, key, this);
 		return res;
 	}
 
@@ -317,7 +317,7 @@ public final class NbtCompound extends ValuelessNbtCompound implements NestedToS
 
 		for (int i = 0, len = entries(); i < len; ++i) {
 			String key = keys[i];
-			if (dest.containsKey(key)) throw new NbtParseException.DuplicatedKey(key, dest);
+			if (dest.containsKey(key)) throw new NbtParseException.DuplicatedKey(oomAware, key, dest);
 			switch (types[i]) {
 				case NbtType.tagByte:
 					dest.collisionUnsafeAddByte(key, bytes[bCount++]);

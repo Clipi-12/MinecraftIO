@@ -20,17 +20,22 @@
 
 package me.clipi.io.nbt.exceptions;
 
+import me.clipi.io.OomException;
+import me.clipi.io.OomException.OomAware;
 import me.clipi.io.nbt.NbtCompound;
 import org.jetbrains.annotations.NotNull;
 
-public class NbtKeyNotFoundException extends Exception {
+public final class NbtKeyNotFoundException extends Exception {
 	private static final long serialVersionUID = -3525208150628883798L;
 
 	public final transient @NotNull NbtCompound compoundBeingConstructed;
 	public final @NotNull String key;
 
-	public NbtKeyNotFoundException(@NotNull String key, @NotNull NbtCompound compound) {
-		super("Key " + key + " is not present in the NBT Compound " + compound.nestedToString());
+	public NbtKeyNotFoundException(@NotNull OomAware oomAware, @NotNull String key, @NotNull NbtCompound compound) {
+		super(NbtParseException.msg(oomAware, () ->
+			"Key " + key + " is not present in the NBT Compound " + compound.nestedToString()));
+		// noinspection StringEquality
+		if (getMessage() == NbtParseException.oomMsg) addSuppressed(OomException.INSTANCE);
 		this.key = key;
 		this.compoundBeingConstructed = compound;
 	}

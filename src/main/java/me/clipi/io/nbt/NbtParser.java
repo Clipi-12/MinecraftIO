@@ -27,6 +27,7 @@ import me.clipi.io.OomException;
 import me.clipi.io.OomException.OomAware;
 import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
 import me.clipi.io.nbt.exceptions.NbtParseException;
+import me.clipi.io.nbt.exceptions.NbtParseException.IncorrectSchema;
 import me.clipi.io.nbt.schema.*;
 import me.clipi.io.nbt.schema.NbtListOfCompoundsSchema.ListOfSchemas;
 import me.clipi.io.util.FixedStack;
@@ -86,8 +87,8 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	}
 
 	@NotNull
-	private static <T> T nonNullSchema(@NotNull Object parentSchema, @Nullable T schema) throws NbtParseException.IncorrectSchema {
-		if (schema == null) throw new NbtParseException.IncorrectSchema(parentSchema);
+	private <T> T nonNullSchema(@NotNull Object parentSchema, @Nullable T schema) throws IncorrectSchema {
+		if (schema == null) throw new IncorrectSchema(oomAware, parentSchema);
 		return schema;
 	}
 
@@ -161,11 +162,11 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				if (type == NbtType.tagEnd) {
 					try {
 						if (schema.deniesFinishedCompound())
-							throw new NbtParseException.IncorrectSchema(schema);
-					} catch (NbtParseException.IncorrectSchema ex) {
+							throw new IncorrectSchema(oomAware, schema);
+					} catch (IncorrectSchema ex) {
 						throw ex;
 					} catch (NbtParseException | NbtKeyNotFoundException cause) {
-						throw new NbtParseException.IncorrectSchema(cause);
+						throw new IncorrectSchema(oomAware, schema, cause);
 					}
 
 					if (targetAndSchema.advanceIsFinished()) {
@@ -185,41 +186,41 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 					continue newTarget;
 				}
 				String key = readString();
-				if (target.containsKey(key)) throw new NbtParseException.DuplicatedKey(key, schema);
+				if (target.containsKey(key)) throw new NbtParseException.DuplicatedKey(oomAware, key, schema);
 				switch (type) {
 					case NbtType.tagByte: {
 						int value = di.expectByte();
-						if (schema.deniesByte(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+						if (schema.deniesByte(key, value)) throw new IncorrectSchema(oomAware, schema);
 						target.collisionUnsafeAddByte(key, (byte) value);
 						break;
 					}
 					case NbtType.tagShort: {
 						int value = di.expectShort();
-						if (schema.deniesShort(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+						if (schema.deniesShort(key, value)) throw new IncorrectSchema(oomAware, schema);
 						target.collisionUnsafeAddShort(key, (short) value);
 						break;
 					}
 					case NbtType.tagInt: {
 						int value = di.expectInt();
-						if (schema.deniesInt(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+						if (schema.deniesInt(key, value)) throw new IncorrectSchema(oomAware, schema);
 						target.collisionUnsafeAddInt(key, value);
 						break;
 					}
 					case NbtType.tagLong: {
 						long value = di.expectLong();
-						if (schema.deniesLong(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+						if (schema.deniesLong(key, value)) throw new IncorrectSchema(oomAware, schema);
 						target.collisionUnsafeAddLong(key, value);
 						break;
 					}
 					case NbtType.tagFloat: {
 						float value = di.expectFloat();
-						if (schema.deniesFloat(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+						if (schema.deniesFloat(key, value)) throw new IncorrectSchema(oomAware, schema);
 						target.collisionUnsafeAddFloat(key, value);
 						break;
 					}
 					case NbtType.tagDouble: {
 						double value = di.expectDouble();
-						if (schema.deniesDouble(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+						if (schema.deniesDouble(key, value)) throw new IncorrectSchema(oomAware, schema);
 						target.collisionUnsafeAddDouble(key, value);
 						break;
 					}
@@ -293,11 +294,11 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 				if (i == len) {
 					try {
 						if (schema.deniesFinishedList())
-							throw new NbtParseException.IncorrectSchema(schema);
-					} catch (NbtParseException.IncorrectSchema ex) {
+							throw new IncorrectSchema(oomAware, schema);
+					} catch (IncorrectSchema ex) {
 						throw ex;
 					} catch (NbtParseException | NbtKeyNotFoundException cause) {
-						throw new NbtParseException.IncorrectSchema(cause);
+						throw new IncorrectSchema(oomAware, schema, cause);
 					}
 
 					ParsingTarget parent;
@@ -375,7 +376,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			result = NbtList.EMPTY_LIST;
 		}
 		ListOfCompoundsTarget newTarget =
-			OomAware.tryRun(oomAware, () -> new ListOfCompoundsTarget(valuelessCompounds, schema,
+			OomAware.tryRun(oomAware, () -> new ListOfCompoundsTarget(oomAware, valuelessCompounds, schema,
 																	  () -> onFinish.accept(result)));
 		nestedTarget.push(newTarget);
 		if (newTarget.advanceIsFinished()) throw new AssertionError(
@@ -399,7 +400,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		int type = di.expectByte();
 		int len = readArrayLen();
 		if (len == 0) {
-			if (parentSchema.deniesEmptyList(index)) throw new NbtParseException.IncorrectSchema(parentSchema);
+			if (parentSchema.deniesEmptyList(index)) throw new IncorrectSchema(oomAware, parentSchema);
 			handleList.accept(NbtList.EMPTY_LIST);
 			return true;
 		}
@@ -408,48 +409,44 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			case NbtType.tagEnd:
 				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
 			case NbtType.tagByte: {
-				if (parentSchema.deniesByteList(index, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesByteList(index, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				byte[] list = di.expectByteArray(len);
-				if (parentSchema.deniesByteList(index, list)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesByteList(index, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagShort: {
-				if (parentSchema.deniesShortList(index, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesShortList(index, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				short[] list = di.expectShortArray(len);
-				if (parentSchema.deniesShortList(index, list))
-					throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesShortList(index, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagInt: {
-				if (parentSchema.deniesIntList(index, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesIntList(index, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				int[] list = di.expectIntArray(len);
-				if (parentSchema.deniesIntList(index, list)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesIntList(index, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagLong: {
-				if (parentSchema.deniesLongList(index, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesLongList(index, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				long[] list = di.expectLongArray(len);
-				if (parentSchema.deniesLongList(index, list)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesLongList(index, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagFloat: {
-				if (parentSchema.deniesFloatList(index, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesFloatList(index, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				float[] list = di.expectFloatArray(len);
-				if (parentSchema.deniesFloatList(index, list))
-					throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesFloatList(index, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagDouble: {
-				if (parentSchema.deniesDoubleList(index, len))
-					throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesDoubleList(index, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				double[] list = di.expectDoubleArray(len);
-				if (parentSchema.deniesDoubleList(index, list))
-					throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesDoubleList(index, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
@@ -514,7 +511,7 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 		int type = di.expectByte();
 		int len = readArrayLen();
 		if (len == 0) {
-			if (parentSchema.deniesEmptyList(key)) throw new NbtParseException.IncorrectSchema(parentSchema);
+			if (parentSchema.deniesEmptyList(key)) throw new IncorrectSchema(oomAware, parentSchema);
 			handleList.accept(NbtList.EMPTY_LIST);
 			return true;
 		}
@@ -523,44 +520,44 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			case NbtType.tagEnd:
 				throw new NbtParseException.UnexpectedTagType(null, NbtType.tagEnd);
 			case NbtType.tagByte: {
-				if (parentSchema.deniesByteList(key, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesByteList(key, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				byte[] list = di.expectByteArray(len);
-				if (parentSchema.deniesByteList(key, list)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesByteList(key, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagShort: {
-				if (parentSchema.deniesShortList(key, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesShortList(key, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				short[] list = di.expectShortArray(len);
-				if (parentSchema.deniesShortList(key, list)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesShortList(key, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagInt: {
-				if (parentSchema.deniesIntList(key, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesIntList(key, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				int[] list = di.expectIntArray(len);
-				if (parentSchema.deniesIntList(key, list)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesIntList(key, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagLong: {
-				if (parentSchema.deniesLongList(key, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesLongList(key, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				long[] list = di.expectLongArray(len);
-				if (parentSchema.deniesLongList(key, list)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesLongList(key, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagFloat: {
-				if (parentSchema.deniesFloatList(key, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesFloatList(key, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				float[] list = di.expectFloatArray(len);
-				if (parentSchema.deniesFloatList(key, list)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesFloatList(key, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
 			case NbtType.tagDouble: {
-				if (parentSchema.deniesDoubleList(key, len)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesDoubleList(key, len)) throw new IncorrectSchema(oomAware, parentSchema);
 				double[] list = di.expectDoubleArray(len);
-				if (parentSchema.deniesDoubleList(key, list)) throw new NbtParseException.IncorrectSchema(parentSchema);
+				if (parentSchema.deniesDoubleList(key, list)) throw new IncorrectSchema(oomAware, parentSchema);
 				listToBeHandled = NbtList.emptyUnsafeCreate(oomAware, list);
 				break;
 			}
@@ -622,14 +619,14 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	private String readString(@NotNull NbtCompoundSchema schema, @NotNull String key)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int stringLen = di.expectShort();
-		if (schema.deniesString(key, stringLen, false)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesString(key, stringLen, false)) throw new IncorrectSchema(oomAware, schema);
 		String value;
 		try {
 			value = di.expectModifiedUtf8((short) stringLen);
 		} catch (CheckedBigEndianDataInput.ModifiedUtf8DataFormatException ex) {
 			throw new NbtParseException.InvalidString(ex);
 		}
-		if (schema.deniesString(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesString(key, value)) throw new IncorrectSchema(oomAware, schema);
 		return value;
 	}
 
@@ -637,14 +634,14 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	private String readString(@NotNull NbtListOfStringsSchema schema, int index)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int stringLen = di.expectShort();
-		if (schema.deniesString(index, stringLen, false)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesString(index, stringLen, false)) throw new IncorrectSchema(oomAware, schema);
 		String value;
 		try {
 			value = di.expectModifiedUtf8((short) stringLen);
 		} catch (CheckedBigEndianDataInput.ModifiedUtf8DataFormatException ex) {
 			throw new NbtParseException.InvalidString(ex);
 		}
-		if (schema.deniesString(index, value)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesString(index, value)) throw new IncorrectSchema(oomAware, schema);
 		return value;
 	}
 
@@ -657,54 +654,54 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 	private byte @NotNull [] readByteArray(@NotNull NbtCompoundSchema schema, @NotNull String key)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int arrayLen = readArrayLen();
-		if (schema.deniesByteArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesByteArray(key, arrayLen)) throw new IncorrectSchema(oomAware, schema);
 		byte[] value = di.expectByteArray(arrayLen);
-		if (schema.deniesByteArray(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesByteArray(key, value)) throw new IncorrectSchema(oomAware, schema);
 		return value;
 	}
 
 	private byte @NotNull [] readByteArray(@NotNull NbtListOfByteArraysSchema schema, int index)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int arrayLen = readArrayLen();
-		if (schema.deniesByteArray(index, arrayLen)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesByteArray(index, arrayLen)) throw new IncorrectSchema(oomAware, schema);
 		byte[] value = di.expectByteArray(arrayLen);
-		if (schema.deniesByteArray(index, value)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesByteArray(index, value)) throw new IncorrectSchema(oomAware, schema);
 		return value;
 	}
 
 	private int @NotNull [] readIntArray(@NotNull NbtCompoundSchema schema, @NotNull String key)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int arrayLen = readArrayLen();
-		if (schema.deniesIntArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesIntArray(key, arrayLen)) throw new IncorrectSchema(oomAware, schema);
 		int[] value = di.expectIntArray(arrayLen);
-		if (schema.deniesIntArray(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesIntArray(key, value)) throw new IncorrectSchema(oomAware, schema);
 		return value;
 	}
 
 	private int @NotNull [] readIntArray(@NotNull NbtListOfIntArraysSchema schema, int index)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int arrayLen = readArrayLen();
-		if (schema.deniesIntArray(index, arrayLen)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesIntArray(index, arrayLen)) throw new IncorrectSchema(oomAware, schema);
 		int[] value = di.expectIntArray(arrayLen);
-		if (schema.deniesIntArray(index, value)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesIntArray(index, value)) throw new IncorrectSchema(oomAware, schema);
 		return value;
 	}
 
 	private long @NotNull [] readLongArray(@NotNull NbtCompoundSchema schema, @NotNull String key)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int arrayLen = readArrayLen();
-		if (schema.deniesLongArray(key, arrayLen)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesLongArray(key, arrayLen)) throw new IncorrectSchema(oomAware, schema);
 		long[] value = di.expectLongArray(arrayLen);
-		if (schema.deniesLongArray(key, value)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesLongArray(key, value)) throw new IncorrectSchema(oomAware, schema);
 		return value;
 	}
 
 	private long @NotNull [] readLongArray(@NotNull NbtListOfLongArraysSchema schema, int index)
 		throws ReadException, EofException, OomException, NbtParseException {
 		int arrayLen = readArrayLen();
-		if (schema.deniesLongArray(index, arrayLen)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesLongArray(index, arrayLen)) throw new IncorrectSchema(oomAware, schema);
 		long[] value = di.expectLongArray(arrayLen);
-		if (schema.deniesLongArray(index, value)) throw new NbtParseException.IncorrectSchema(schema);
+		if (schema.deniesLongArray(index, value)) throw new IncorrectSchema(oomAware, schema);
 		return value;
 	}
 
@@ -737,12 +734,13 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 			this.compound = compound;
 		}
 
-		public boolean advanceIsFinished() throws OomException, NbtParseException.IncorrectSchema {
+		public boolean advanceIsFinished() throws OomException, IncorrectSchema {
 			return true;
 		}
 	}
 
 	private static final class ListOfCompoundsTarget extends CompoundTarget {
+		private final @Nullable OomAware oomAware;
 		private final @NotNull NbtListOfCompoundsSchema parentSchema;
 		private final @NotNull ValuelessNbtCompound @NotNull [] compounds;
 		private final @NotNull CheckedRunnable<OomException> onFinish;
@@ -750,32 +748,36 @@ public class NbtParser<ReadException extends Exception> implements AutoCloseable
 
 		@SuppressWarnings("DataFlowIssue")
 		private ListOfCompoundsTarget(
-			@NotNull ValuelessNbtCompound @NotNull [] compounds, @NotNull NbtListOfCompoundsSchema parentSchema,
+			@Nullable OomAware oomAware, @NotNull ValuelessNbtCompound @NotNull [] compounds,
+			@NotNull NbtListOfCompoundsSchema parentSchema,
 			@NotNull CheckedRunnable<OomException> onFinish) {
 			super(null, null);
+			this.oomAware = oomAware;
 			this.parentSchema = parentSchema;
 			this.compounds = compounds;
 			this.onFinish = onFinish;
 		}
 
 		@Override
-		public boolean advanceIsFinished() throws OomException, NbtParseException.IncorrectSchema {
+		public boolean advanceIsFinished() throws OomException, IncorrectSchema {
 			int i = this.i++;
 			ValuelessNbtCompound[] compounds = this.compounds;
 			if (i == compounds.length) {
 				try {
 					if (parentSchema.deniesFinishedList())
-						throw new NbtParseException.IncorrectSchema(parentSchema);
-				} catch (NbtParseException.IncorrectSchema ex) {
+						throw new IncorrectSchema(oomAware, parentSchema);
+				} catch (IncorrectSchema ex) {
 					throw ex;
 				} catch (NbtParseException | NbtKeyNotFoundException cause) {
-					throw new NbtParseException.IncorrectSchema(cause);
+					throw new IncorrectSchema(oomAware, parentSchema, cause);
 				}
 				onFinish.run();
 				return true;
 			}
 			assert i < compounds.length;
-			super.schema = nonNullSchema(parentSchema, parentSchema.schemaForCompound(i));
+			// noinspection DataFlowIssue
+			super.schema = parentSchema.schemaForCompound(i);
+			if (super.schema == null) throw new IncorrectSchema(oomAware, parentSchema);
 			super.compound = compounds[i];
 			return false;
 		}

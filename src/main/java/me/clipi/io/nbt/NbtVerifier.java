@@ -24,6 +24,7 @@ import me.clipi.io.OomException;
 import me.clipi.io.OomException.OomAware;
 import me.clipi.io.nbt.exceptions.NbtKeyNotFoundException;
 import me.clipi.io.nbt.exceptions.NbtParseException;
+import me.clipi.io.nbt.exceptions.NbtParseException.IncorrectSchema;
 import me.clipi.io.nbt.schema.*;
 import me.clipi.io.util.FixedStack;
 import org.jetbrains.annotations.NotNull;
@@ -31,8 +32,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class NbtVerifier {
 	@NotNull
-	private static <T> T nonNullSchema(@NotNull Object parentSchema, @Nullable T schema) throws NbtParseException.IncorrectSchema {
-		if (schema == null) throw new NbtParseException.IncorrectSchema(parentSchema);
+	private static <T> T nonNullSchema(@NotNull OomAware oomAware, @NotNull Object parentSchema, @Nullable T schema) throws IncorrectSchema {
+		if (schema == null) throw new IncorrectSchema(oomAware, parentSchema);
 		return schema;
 	}
 
@@ -42,9 +43,9 @@ public class NbtVerifier {
 	 */
 	@NotNull
 	public static <Schema extends NbtCompoundSchema> Schema verifyRoot(
-		@NotNull OomAware oomAware, @NotNull NbtRoot root, @NotNull NbtRootSchema<Schema> rootSchema) throws OomException, NbtParseException.IncorrectSchema, NbtParseException.DuplicatedKey {
+		@NotNull OomAware oomAware, @NotNull NbtRoot root, @NotNull NbtRootSchema<Schema> rootSchema) throws OomException, IncorrectSchema, NbtParseException.DuplicatedKey {
 		Schema schema = rootSchema.schemaForRootValue(root.name, oomAware);
-		if (schema == null) throw new NbtParseException.IncorrectSchema(rootSchema);
+		if (schema == null) throw new IncorrectSchema(oomAware, rootSchema);
 		verifyCompoundOrThrow(oomAware, root.rootValue, schema);
 		return schema;
 	}
@@ -53,7 +54,7 @@ public class NbtVerifier {
 		@NotNull OomAware oomAware, @NotNull NbtCompound compound, @NotNull NbtCompoundSchema schema) throws OomException {
 		try {
 			verifyCompoundOrThrow(oomAware, compound, schema);
-		} catch (NbtParseException.IncorrectSchema | NbtParseException.DuplicatedKey e) {
+		} catch (IncorrectSchema | NbtParseException.DuplicatedKey e) {
 			return true;
 		}
 		return false;
@@ -64,7 +65,7 @@ public class NbtVerifier {
 	 *                                         already contains a key that was going to be inserted
 	 */
 	public static void verifyCompoundOrThrow(
-		@NotNull OomAware oomAware, @NotNull NbtCompound compound, @NotNull NbtCompoundSchema schema) throws OomException, NbtParseException.IncorrectSchema, NbtParseException.DuplicatedKey {
+		@NotNull OomAware oomAware, @NotNull NbtCompound compound, @NotNull NbtCompoundSchema schema) throws OomException, IncorrectSchema, NbtParseException.DuplicatedKey {
 		if (schema instanceof SaveCompoundSchema) {
 			compound.copyTo(((SaveCompoundSchema) schema).compound);
 		}
@@ -90,7 +91,7 @@ public class NbtVerifier {
 	@SuppressWarnings("DataFlowIssue")
 	private static ListOfListsTarget verifyMapEntries(
 		@NotNull OomAware oomAware, @NotNull FixedStack<VerifyingTarget> nestedTarget,
-		@NotNull CompoundTarget targetAndSchema) throws OomException, NbtParseException.IncorrectSchema,
+		@NotNull CompoundTarget targetAndSchema) throws OomException, IncorrectSchema,
 														NbtParseException.DuplicatedKey {
 		assert nestedTarget.tryPeek() == targetAndSchema;
 		newTarget:
@@ -118,114 +119,122 @@ public class NbtVerifier {
 					switch (types[i++]) {
 						case NbtType.tagByte:
 							if (schema.deniesByte(key, bytes[bCount++]))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						case NbtType.tagShort:
 							if (schema.deniesShort(key, shorts[sCount++]))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						case NbtType.tagInt:
 							if (schema.deniesInt(key, ints[iCount++]))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						case NbtType.tagLong:
 							if (schema.deniesLong(key, longs[lCount++]))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						case NbtType.tagFloat:
 							if (schema.deniesFloat(key, floats[fCount++]))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						case NbtType.tagDouble:
 							if (schema.deniesDouble(key, doubles[dCount++]))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						case NbtType.tagByteArray: {
 							byte[] obj = (byte[]) objects[oCount++];
 							if (schema.deniesByteArray(key, obj.length) || schema.deniesByteArray(key, obj))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						}
 						case NbtType.tagIntArray: {
 							int[] obj = (int[]) objects[oCount++];
 							if (schema.deniesIntArray(key, obj.length) || schema.deniesIntArray(key, obj))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						}
 						case NbtType.tagLongArray: {
 							long[] obj = (long[]) objects[oCount++];
 							if (schema.deniesLongArray(key, obj.length) || schema.deniesLongArray(key, obj))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						}
 						case NbtType.tagString: {
 							String obj = (String) objects[oCount++];
 							if (schema.deniesString(key, obj.length(), true) || schema.deniesString(key, obj))
-								throw new NbtParseException.IncorrectSchema(schema);
+								throw new IncorrectSchema(oomAware, schema);
 							break;
 						}
 						case NbtType.tagList: {
 							NbtList obj = (NbtList) objects[oCount++];
 							Object array = obj.array;
 							if (array == null) {
-								if (schema.deniesEmptyList(key)) throw new NbtParseException.IncorrectSchema(schema);
+								if (schema.deniesEmptyList(key)) throw new IncorrectSchema(oomAware, schema);
 								break;
 							}
 							switch (obj.componentType) {
 								case Byte:
 									if (schema.deniesByteList(key, ((byte[]) array).length) ||
 										schema.deniesByteList(key, (byte[]) array))
-										throw new NbtParseException.IncorrectSchema(schema);
+										throw new IncorrectSchema(oomAware, schema);
 									break;
 								case Short:
 									if (schema.deniesShortList(key, ((short[]) array).length) ||
 										schema.deniesShortList(key, (short[]) array))
-										throw new NbtParseException.IncorrectSchema(schema);
+										throw new IncorrectSchema(oomAware, schema);
 									break;
 								case Int:
 									if (schema.deniesIntList(key, ((int[]) array).length) ||
 										schema.deniesIntList(key, (int[]) array))
-										throw new NbtParseException.IncorrectSchema(schema);
+										throw new IncorrectSchema(oomAware, schema);
 									break;
 								case Long:
 									if (schema.deniesLongList(key, ((long[]) array).length) ||
 										schema.deniesLongList(key, (long[]) array))
-										throw new NbtParseException.IncorrectSchema(schema);
+										throw new IncorrectSchema(oomAware, schema);
 									break;
 								case Float:
 									if (schema.deniesFloatList(key, ((float[]) array).length) ||
 										schema.deniesFloatList(key, (float[]) array))
-										throw new NbtParseException.IncorrectSchema(schema);
+										throw new IncorrectSchema(oomAware, schema);
 									break;
 								case Double:
 									if (schema.deniesDoubleList(key, ((double[]) array).length) ||
 										schema.deniesDoubleList(key, (double[]) array))
-										throw new NbtParseException.IncorrectSchema(schema);
+										throw new IncorrectSchema(oomAware, schema);
 									break;
 								case ByteArray:
 									emptyUnsafeCheckNotDeniedBySchema(
+										oomAware,
 										nonNullSchema(
+											oomAware,
 											schema, schema.schemaForListOfByteArrays(key, ((byte[][]) array).length)),
 										(byte[][]) array
 									);
 									break;
 								case IntArray:
 									emptyUnsafeCheckNotDeniedBySchema(
+										oomAware,
 										nonNullSchema(
+											oomAware,
 											schema, schema.schemaForListOfIntArrays(key, ((int[][]) array).length)),
 										(int[][]) array
 									);
 									break;
 								case LongArray:
 									emptyUnsafeCheckNotDeniedBySchema(
+										oomAware,
 										nonNullSchema(
+											oomAware,
 											schema, schema.schemaForListOfLongArrays(key, ((long[][]) array).length)),
 										(long[][]) array
 									);
 									break;
 								case String:
 									emptyUnsafeCheckNotDeniedBySchema(
+										oomAware,
 										nonNullSchema(
+											oomAware,
 											schema, schema.schemaForListOfStrings(key, ((String[]) array).length)),
 										(String[]) array
 									);
@@ -234,6 +243,7 @@ public class NbtVerifier {
 									NbtList[] listOfLists = (NbtList[]) array;
 									ListOfListsTarget res = ListOfListsTarget.create(
 										oomAware, listOfLists, nonNullSchema(
+											oomAware,
 											schema, schema.schemaForListOfLists(key, listOfLists.length)));
 									try {
 										nestedTarget.push(res);
@@ -249,7 +259,7 @@ public class NbtVerifier {
 										i, bCount, sCount, iCount, lCount, fCount, dCount, oCount);
 									targetAndSchema = verifyListOfCompoundsValue(
 										oomAware, nestedTarget,
-										nonNullSchema(schema, schema.schemaForListOfCompounds(
+										nonNullSchema(oomAware, schema, schema.schemaForListOfCompounds(
 											key, ((NbtCompound[]) array).length)),
 										(NbtCompound[]) array
 									);
@@ -261,7 +271,8 @@ public class NbtVerifier {
 						}
 						case NbtType.tagCompound: {
 							NbtCompound obj = (NbtCompound) objects[oCount++];
-							NbtCompoundSchema newSchema = nonNullSchema(schema, schema.schemaForCompound(key));
+							NbtCompoundSchema newSchema = nonNullSchema(
+								oomAware, schema, schema.schemaForCompound(key));
 							if (newSchema instanceof SaveCompoundSchema)
 								obj.copyTo(((SaveCompoundSchema) newSchema).compound);
 							targetAndSchema.saveIndices(i, bCount, sCount, iCount, lCount, fCount, dCount, oCount);
@@ -280,11 +291,11 @@ public class NbtVerifier {
 			}
 			try {
 				if (schema.deniesFinishedCompound())
-					throw new NbtParseException.IncorrectSchema(schema);
-			} catch (NbtParseException.IncorrectSchema ex) {
+					throw new IncorrectSchema(oomAware, schema);
+			} catch (IncorrectSchema ex) {
 				throw ex;
 			} catch (NbtKeyNotFoundException | NbtParseException cause) {
-				throw new NbtParseException.IncorrectSchema(cause);
+				throw new IncorrectSchema(oomAware, schema, cause);
 			}
 			if (targetAndSchema.advanceIsFinished()) {
 				try {
@@ -307,7 +318,7 @@ public class NbtVerifier {
 	@NotNull
 	private static CompoundTarget verifyListEntries(
 		@NotNull OomAware oomAware, @NotNull FixedStack<VerifyingTarget> nestedTarget,
-		@NotNull ListOfListsTarget target) throws OomException, NbtParseException.IncorrectSchema {
+		@NotNull ListOfListsTarget target) throws OomException, IncorrectSchema {
 		assert nestedTarget.tryPeek() == target;
 
 		newTarget:
@@ -320,11 +331,11 @@ public class NbtVerifier {
 				if (i == len) {
 					try {
 						if (schema.deniesFinishedList())
-							throw new NbtParseException.IncorrectSchema(schema);
-					} catch (NbtParseException.IncorrectSchema ex) {
+							throw new IncorrectSchema(oomAware, schema);
+					} catch (IncorrectSchema ex) {
 						throw ex;
 					} catch (NbtParseException | NbtKeyNotFoundException cause) {
-						throw new NbtParseException.IncorrectSchema(cause);
+						throw new IncorrectSchema(oomAware, schema, cause);
 					}
 
 					VerifyingTarget parent;
@@ -346,61 +357,69 @@ public class NbtVerifier {
 				NbtList obj = array[i];
 				Object list = obj.array;
 				if (list == null) {
-					if (schema.deniesEmptyList(i)) throw new NbtParseException.IncorrectSchema(schema);
+					if (schema.deniesEmptyList(i)) throw new IncorrectSchema(oomAware, schema);
 					break;
 				}
 				switch (obj.componentType) {
 					case Byte:
 						if (schema.deniesByteList(i, ((byte[]) list).length) ||
 							schema.deniesByteList(i, (byte[]) list))
-							throw new NbtParseException.IncorrectSchema(schema);
+							throw new IncorrectSchema(oomAware, schema);
 						break;
 					case Short:
 						if (schema.deniesShortList(i, ((short[]) list).length) ||
 							schema.deniesShortList(i, (short[]) list))
-							throw new NbtParseException.IncorrectSchema(schema);
+							throw new IncorrectSchema(oomAware, schema);
 						break;
 					case Int:
 						if (schema.deniesIntList(i, ((int[]) list).length) ||
 							schema.deniesIntList(i, (int[]) list))
-							throw new NbtParseException.IncorrectSchema(schema);
+							throw new IncorrectSchema(oomAware, schema);
 						break;
 					case Long:
 						if (schema.deniesLongList(i, ((long[]) list).length) ||
 							schema.deniesLongList(i, (long[]) list))
-							throw new NbtParseException.IncorrectSchema(schema);
+							throw new IncorrectSchema(oomAware, schema);
 						break;
 					case Float:
 						if (schema.deniesFloatList(i, ((float[]) list).length) ||
 							schema.deniesFloatList(i, (float[]) list))
-							throw new NbtParseException.IncorrectSchema(schema);
+							throw new IncorrectSchema(oomAware, schema);
 						break;
 					case Double:
 						if (schema.deniesDoubleList(i, ((double[]) list).length) ||
 							schema.deniesDoubleList(i, (double[]) list))
-							throw new NbtParseException.IncorrectSchema(schema);
+							throw new IncorrectSchema(oomAware, schema);
 						break;
 					case ByteArray:
 						emptyUnsafeCheckNotDeniedBySchema(
-							nonNullSchema(schema, schema.schemaForListOfByteArrays(i, ((byte[][]) list).length)),
+							oomAware,
+							nonNullSchema(
+								oomAware, schema, schema.schemaForListOfByteArrays(i, ((byte[][]) list).length)),
 							(byte[][]) list
 						);
 						break;
 					case IntArray:
 						emptyUnsafeCheckNotDeniedBySchema(
-							nonNullSchema(schema, schema.schemaForListOfIntArrays(i, ((int[][]) list).length)),
+							oomAware,
+							nonNullSchema(
+								oomAware, schema, schema.schemaForListOfIntArrays(i, ((int[][]) list).length)),
 							(int[][]) list
 						);
 						break;
 					case LongArray:
 						emptyUnsafeCheckNotDeniedBySchema(
-							nonNullSchema(schema, schema.schemaForListOfLongArrays(i, ((long[][]) list).length)),
+							oomAware,
+							nonNullSchema(
+								oomAware, schema, schema.schemaForListOfLongArrays(i, ((long[][]) list).length)),
 							(long[][]) list
 						);
 						break;
 					case String:
 						emptyUnsafeCheckNotDeniedBySchema(
-							nonNullSchema(schema, schema.schemaForListOfStrings(i, ((String[]) list).length)),
+							oomAware,
+							nonNullSchema(
+								oomAware, schema, schema.schemaForListOfStrings(i, ((String[]) list).length)),
 							(String[]) list
 						);
 						break;
@@ -410,7 +429,7 @@ public class NbtVerifier {
 						try {
 							nestedTarget.push(child = ListOfListsTarget.create(
 								oomAware, listOfLists, nonNullSchema(
-									schema, schema.schemaForListOfLists(i, listOfLists.length))));
+									oomAware, schema, schema.schemaForListOfLists(i, listOfLists.length))));
 						} catch (FixedStack.FullStackException ex) {
 							throw new IllegalStateException(ex);
 						}
@@ -423,7 +442,8 @@ public class NbtVerifier {
 						target.savedIndex = ++i;
 						return verifyListOfCompoundsValue(
 							oomAware, nestedTarget,
-							nonNullSchema(schema, schema.schemaForListOfCompounds(i, ((NbtCompound[]) list).length)),
+							nonNullSchema(
+								oomAware, schema, schema.schemaForListOfCompounds(i, ((NbtCompound[]) list).length)),
 							(NbtCompound[]) list
 						);
 					case End:
@@ -437,10 +457,11 @@ public class NbtVerifier {
 	@NotNull
 	private static ListOfCompoundsTarget verifyListOfCompoundsValue(
 		@NotNull OomAware oomAware, @NotNull FixedStack<VerifyingTarget> nestedTarget,
-		@NotNull NbtListOfCompoundsSchema schema, @NotNull NbtCompound @NotNull [] listOfCompounds) throws OomException, NbtParseException.IncorrectSchema {
+		@NotNull NbtListOfCompoundsSchema schema, @NotNull NbtCompound @NotNull [] listOfCompounds) throws OomException, IncorrectSchema {
 		int len = listOfCompounds.length;
 
-		ListOfCompoundsTarget res = oomAware.tryRun(() -> new ListOfCompoundsTarget(listOfCompounds, schema));
+		ListOfCompoundsTarget res = oomAware.tryRun(() -> new ListOfCompoundsTarget(
+			oomAware, listOfCompounds, schema));
 		if (res.advanceIsFinished()) throw new AssertionError(
 			"Passed len was 0 (sanity check: actual len is = " + len + ")");
 		try {
@@ -454,42 +475,42 @@ public class NbtVerifier {
 
 	// <editor-fold defaultstate="collapsed" desc="isListOfObjectsDeniedBySchema">
 	private static void emptyUnsafeCheckNotDeniedBySchema(
-		@NotNull NbtListOfByteArraysSchema schema, byte @NotNull [] @NotNull [] list)
-		throws OomException, NbtParseException.IncorrectSchema {
+		@NotNull OomAware oomAware, @NotNull NbtListOfByteArraysSchema schema, byte @NotNull [] @NotNull [] list)
+		throws OomException, IncorrectSchema {
 		for (int i = 0, len = list.length; i < len; ++i) {
 			byte[] value = list[i];
 			if (schema.deniesByteArray(i, value.length) || schema.deniesByteArray(i, value))
-				throw new NbtParseException.IncorrectSchema(schema);
+				throw new IncorrectSchema(oomAware, schema);
 		}
 	}
 
 	private static void emptyUnsafeCheckNotDeniedBySchema(
-		@NotNull NbtListOfIntArraysSchema schema, int @NotNull [] @NotNull [] list)
-		throws OomException, NbtParseException.IncorrectSchema {
+		@NotNull OomAware oomAware, @NotNull NbtListOfIntArraysSchema schema, int @NotNull [] @NotNull [] list)
+		throws OomException, IncorrectSchema {
 		for (int i = 0, len = list.length; i < len; ++i) {
 			int[] value = list[i];
 			if (schema.deniesIntArray(i, value.length) || schema.deniesIntArray(i, value))
-				throw new NbtParseException.IncorrectSchema(schema);
+				throw new IncorrectSchema(oomAware, schema);
 		}
 	}
 
 	private static void emptyUnsafeCheckNotDeniedBySchema(
-		@NotNull NbtListOfLongArraysSchema schema, long @NotNull [] @NotNull [] list)
-		throws OomException, NbtParseException.IncorrectSchema {
+		@NotNull OomAware oomAware, @NotNull NbtListOfLongArraysSchema schema, long @NotNull [] @NotNull [] list)
+		throws OomException, IncorrectSchema {
 		for (int i = 0, len = list.length; i < len; ++i) {
 			long[] value = list[i];
 			if (schema.deniesLongArray(i, value.length) || schema.deniesLongArray(i, value))
-				throw new NbtParseException.IncorrectSchema(schema);
+				throw new IncorrectSchema(oomAware, schema);
 		}
 	}
 
 	private static void emptyUnsafeCheckNotDeniedBySchema(
-		@NotNull NbtListOfStringsSchema schema, @NotNull String @NotNull [] list)
-		throws OomException, NbtParseException.IncorrectSchema {
+		@NotNull OomAware oomAware, @NotNull NbtListOfStringsSchema schema, @NotNull String @NotNull [] list)
+		throws OomException, IncorrectSchema {
 		for (int i = 0, len = list.length; i < len; ++i) {
 			String value = list[i];
 			if (schema.deniesString(i, value.length(), true) || schema.deniesString(i, value))
-				throw new NbtParseException.IncorrectSchema(schema);
+				throw new IncorrectSchema(oomAware, schema);
 		}
 	}
 	// </editor-fold>
@@ -520,26 +541,29 @@ public class NbtVerifier {
 			this.oCount = oCount;
 		}
 
-		public boolean advanceIsFinished() throws OomException, NbtParseException.IncorrectSchema {
+		public boolean advanceIsFinished() throws OomException, IncorrectSchema {
 			return true;
 		}
 	}
 
 	private static final class ListOfCompoundsTarget extends CompoundTarget {
+		private final @NotNull OomAware oomAware;
 		private final @NotNull NbtListOfCompoundsSchema parentSchema;
 		private final @NotNull NbtCompound @NotNull [] compounds;
 		private int i = 0;
 
 		@SuppressWarnings("DataFlowIssue")
-		private ListOfCompoundsTarget(
-			@NotNull NbtCompound @NotNull [] compounds, @NotNull NbtListOfCompoundsSchema parentSchema) {
+		private ListOfCompoundsTarget(@NotNull OomAware oomAware,
+									  @NotNull NbtCompound @NotNull [] compounds,
+									  @NotNull NbtListOfCompoundsSchema parentSchema) {
 			super(null, null);
+			this.oomAware = oomAware;
 			this.parentSchema = parentSchema;
 			this.compounds = compounds;
 		}
 
 		@Override
-		public boolean advanceIsFinished() throws OomException, NbtParseException.IncorrectSchema {
+		public boolean advanceIsFinished() throws OomException, IncorrectSchema {
 			super.savedIndex = 0;
 			super.bCount = 0;
 			super.sCount = 0;
@@ -553,16 +577,16 @@ public class NbtVerifier {
 			if (i == compounds.length) {
 				try {
 					if (parentSchema.deniesFinishedList())
-						throw new NbtParseException.IncorrectSchema(parentSchema);
-				} catch (NbtParseException.IncorrectSchema ex) {
+						throw new IncorrectSchema(oomAware, parentSchema);
+				} catch (IncorrectSchema ex) {
 					throw ex;
 				} catch (NbtParseException | NbtKeyNotFoundException cause) {
-					throw new NbtParseException.IncorrectSchema(cause);
+					throw new IncorrectSchema(oomAware, parentSchema, cause);
 				}
 				return true;
 			}
 			assert i < compounds.length;
-			super.schema = nonNullSchema(parentSchema, parentSchema.schemaForCompound(i));
+			super.schema = nonNullSchema(oomAware, parentSchema, parentSchema.schemaForCompound(i));
 			super.compound = compounds[i];
 			return false;
 		}
