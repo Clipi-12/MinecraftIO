@@ -254,7 +254,7 @@ public class CheckedBigEndianDataInput<ReadException extends Exception> implemen
 						}
 					} else if (shifted == 0b1110 && ++i < bytes) {
 						int c = encoded[i] & 0xFF;
-						if ((b >>> 6 == 0b10) & (b >>> 6 == 0b10)) {
+						if ((b >>> 6 == 0b10) & (c >>> 6 == 0b10)) {
 							decodedChar = (char) (((a & 0x0F) << 12) | ((b & 0x3F) << 6) | (c & 0x3F));
 							break decodedChar;
 						}
